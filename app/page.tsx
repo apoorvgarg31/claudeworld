@@ -13,15 +13,15 @@ import Confetti from '@/components/Confetti'
 // Debug keyboard controls for testing movement
 const TEST_ROOMS = ['Read', 'Write', 'Exec', 'Browser', 'Search', null] as const
 
-// Dynamic import for Spline to avoid SSR issues
-const Scene = dynamic(() => import('@/components/Scene'), {
+// Dynamic import for scene to avoid SSR issues
+const SpaceScene = dynamic(() => import('@/components/SpaceScene'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-screen flex items-center justify-center bg-gradient-to-br from-[#0f0f0f] via-[#1a1a2e] to-[#16213e]">
+    <div className="w-full h-screen flex items-center justify-center bg-black">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-anthropic-orange border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <h2 className="text-xl font-semibold text-white mb-2">Loading ClaudeWorld</h2>
-        <p className="text-gray-400">Preparing your virtual office...</p>
+        <h2 className="text-xl font-semibold text-white mb-2">🚀 Launching ClaudeWorld</h2>
+        <p className="text-gray-400">Preparing space station...</p>
       </div>
     </div>
   ),
@@ -66,8 +66,8 @@ export default function Home() {
 
   return (
     <main className="relative w-full h-screen overflow-hidden">
-      {/* 3D Scene */}
-      <Scene />
+      {/* 3D Space Scene */}
+      <SpaceScene />
       
       {/* HUD Overlay */}
       <HUD />
