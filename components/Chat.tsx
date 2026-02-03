@@ -24,28 +24,29 @@ export default function Chat() {
   const [autoScroll, setAutoScroll] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
-  const seenMessages = useRef(new Set<string>())
   const { isConnected } = useClaudeStore()
 
-  // Dedupe helper - prevent duplicate messages
+  // Add message helper - skip empty content
   const addMessage = useCallback((msg: ChatMessage) => {
-    const key = `${msg.type}-${msg.content.slice(0, 100)}`
-    if (seenMessages.current.has(key)) return
-    seenMessages.current.add(key)
+    // Skip empty messages
+    if (!msg.content || !msg.content.trim()) return
     
-    // Clean up old keys after 1000 entries
-    if (seenMessages.current.size > 1000) {
-      const keys = Array.from(seenMessages.current)
-      keys.slice(0, 500).forEach(k => seenMessages.current.delete(k))
-    }
-    
-    setMessages(prev => [...prev, msg])
+    // Simple dedupe - check last 5 messages for same content
+    setMessages(prev => {
+      const recent = prev.slice(-5)
+      const isDupe = recent.some(m => m.type === msg.type && m.content === msg.content)
+      if (isDupe) return prev
+      return [...prev, msg]
+    })
   }, [])
 
   // Subscribe to claude events
   useEffect(() => {
     const handleClaudeEvent = (event: CustomEvent) => {
       const { type, payload } = event.detail
+      
+      // Debug: log all events
+      console.log('📨 Event:', type, payload)
       
       // Handle chat_response from MCP server
       if (type === 'chat_response' && payload?.response) {
