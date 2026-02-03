@@ -1,132 +1,30 @@
 #!/usr/bin/env bash
-# ClaudeWorld Hook - Captures Claude Code events for 3D visualization
-# Based on Vibecraft's approach
-#
-# Install: Add to ~/.claude/settings.json hooks
-
-set -e
-
-# Cross-Platform PATH Setup
-KNOWN_PATHS=(
-  "/opt/homebrew/bin"
-  "/usr/local/bin"
-  "$HOME/.local/bin"
-  "/usr/bin"
-  "/bin"
-)
-
-for dir in "${KNOWN_PATHS[@]}"; do
-  [ -d "$dir" ] && export PATH="$dir:$PATH"
-done
-
-# Find jq
-find_tool() {
-  local name="$1"
-  local found=$(command -v "$name" 2>/dev/null)
-  if [ -n "$found" ]; then
-    echo "$found"
-    return 0
-  fi
-  for dir in "${KNOWN_PATHS[@]}"; do
-    if [ -x "$dir/$name" ]; then
-      echo "$dir/$name"
-      return 0
-    fi
-  done
-  return 1
-}
-
-JQ=$(find_tool "jq") || exit 1
-CURL=$(find_tool "curl") || CURL=""
-
-# Configuration
+# ClaudeWorld Hook - Captures Claude Code events
 BRIDGE_URL="${CLAUDEWORLD_BRIDGE_URL:-http://localhost:3030}"
 
-# Read input from stdin
-input=$(cat)
-
-hook_event_name=$(echo "$input" | "$JQ" -r '.hook_event_name // "unknown"')
-session_id=$(echo "$input" | "$JQ" -r '.session_id // "unknown"')
-
-# Generate timestamp
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  if command -v perl &> /dev/null; then
-    timestamp=$(perl -MTime::HiRes=time -e 'printf "%.0f", time * 1000')
-  else
-    timestamp=$(($(date +%s) * 1000))
-  fi
-else
-  ms_part=$(date +%N | cut -c1-3)
-  timestamp=$(($(date +%s) * 1000 + 10#$ms_part))
+# Find jq
+JQ=$(command -v jq 2>/dev/null || echo "/usr/bin/jq")
+if [ ! -x "$JQ" ]; then
+  exit 0
 fi
 
-# Map tool to room and XP
-get_tool_info() {
-  local tool="$1"
-  case "$tool" in
-    Read)        echo "Read|10" ;;
-    Write)       echo "Write|15" ;;
-    Edit)        echo "Edit|12" ;;
-    Bash|bash)   echo "Exec|10" ;;
-    execute_command) echo "Exec|10" ;;
-    WebFetch|web_fetch) echo "Browser|10" ;;
-    WebSearch|web_search) echo "Search|10" ;;
-    mcp__*)      echo "Browser|5" ;;
-    *)           echo "$tool|10" ;;
-  esac
-}
+input=$(cat)
+hook_event_name=$(echo "$input" | $JQ -r '.hook_event_name // "unknown"')
+tool_name=$(echo "$input" | $JQ -r '.tool_name // "unknown"')
+timestamp=$(($(date +%s) * 1000))
 
-# Handle events
 case "$hook_event_name" in
   PreToolUse)
-    tool_name=$(echo "$input" | "$JQ" -r '.tool_name // "unknown"')
-    tool_info=$(get_tool_info "$tool_name")
-    room=$(echo "$tool_info" | cut -d'|' -f1)
-    xp=$(echo "$tool_info" | cut -d'|' -f2)
-    
-    # Send to bridge
-    if [ -n "$CURL" ]; then
-      "$CURL" -s -X POST "${BRIDGE_URL}/api/event" \
-        -H "Content-Type: application/json" \
-        -d "{\"type\":\"tool_use\",\"payload\":{\"tool\":\"${room}\",\"xp\":${xp}},\"timestamp\":${timestamp}}" \
-        > /dev/null 2>&1 &
-    fi
+    curl -s -X POST "${BRIDGE_URL}/api/event" \
+      -H "Content-Type: application/json" \
+      -d "{\"type\":\"tool_use\",\"payload\":{\"tool\":\"${tool_name}\",\"xp\":10},\"timestamp\":${timestamp}}" \
+      > /dev/null 2>&1 &
     ;;
-    
-  PostToolUse)
-    # Tool finished - could send completion event
-    ;;
-    
   Stop)
-    # Claude stopped - capture response and return to lobby
-    transcript_path=$(echo "$input" | "$JQ" -r '.transcript_path // ""')
-    
-    # Try to get Claude's last response from transcript
-    response=""
-    if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-      response=$(tail -100 "$transcript_path" | "$JQ" -rs '
-        [.[] | select(.type == "assistant")] | last | 
-        .message.content | map(select(.type == "text")) | 
-        map(.text) | join("\n")
-      ' 2>/dev/null || echo "")
-    fi
-    
-    if [ -n "$CURL" ]; then
-      # Send response event
-      if [ -n "$response" ]; then
-        escaped_response=$(echo "$response" | "$JQ" -Rs '.')
-        "$CURL" -s -X POST "${BRIDGE_URL}/api/event" \
-          -H "Content-Type: application/json" \
-          -d "{\"type\":\"response\",\"payload\":{\"response\":${escaped_response}},\"timestamp\":${timestamp}}" \
-          > /dev/null 2>&1 &
-      fi
-      
-      # Return to lobby
-      "$CURL" -s -X POST "${BRIDGE_URL}/api/event" \
-        -H "Content-Type: application/json" \
-        -d "{\"type\":\"skill_end\",\"payload\":{\"skill\":\"lobby\"},\"timestamp\":${timestamp}}" \
-        > /dev/null 2>&1 &
-    fi
+    curl -s -X POST "${BRIDGE_URL}/api/event" \
+      -H "Content-Type: application/json" \
+      -d "{\"type\":\"skill_end\",\"payload\":{\"skill\":\"lobby\"},\"timestamp\":${timestamp}}" \
+      > /dev/null 2>&1 &
     ;;
 esac
 
