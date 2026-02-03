@@ -8,6 +8,7 @@ import HUD from '@/components/HUD'
 import XPPopup from '@/components/XPPopup'
 import Chat from '@/components/Chat'
 import Feed from '@/components/Feed'
+import Confetti from '@/components/Confetti'
 
 // Debug keyboard controls for testing movement
 const TEST_ROOMS = ['Read', 'Write', 'Exec', 'Browser', 'Search', null] as const
@@ -95,6 +96,9 @@ export default function Home() {
 
       {/* Chat Input */}
       <Chat />
+
+      {/* Level Up Confetti */}
+      <Confetti />
 
       {/* Version badge */}
       <div className="absolute bottom-4 right-4 text-xs text-gray-500">
