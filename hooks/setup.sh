@@ -20,28 +20,28 @@ cp "$SOURCE_HOOK" "$HOOK_PATH"
 chmod +x "$HOOK_PATH"
 echo "✓ Installed hook to $HOOK_PATH"
 
-# Create or update settings.json
-if [ -f "$SETTINGS_FILE" ]; then
-  cp "$SETTINGS_FILE" "${SETTINGS_FILE}.backup"
-  echo "✓ Backed up existing settings"
-fi
-
 # Check for jq
 if ! command -v jq &> /dev/null; then
   echo "⚠️  jq not found. Install with: brew install jq"
-  echo ""
-  echo "Then run this script again, or manually add to $SETTINGS_FILE:"
-  echo "{\"hooks\":{\"PreToolUse\":\"$HOOK_PATH\",\"PostToolUse\":\"$HOOK_PATH\",\"Stop\":\"$HOOK_PATH\"}}"
   exit 1
 fi
 
-# Update settings with jq
+# Backup settings
 if [ -f "$SETTINGS_FILE" ]; then
-  jq --arg hook "$HOOK_PATH" '.hooks.PreToolUse = $hook | .hooks.PostToolUse = $hook | .hooks.Stop = $hook' "$SETTINGS_FILE" > "${SETTINGS_FILE}.tmp"
-  mv "${SETTINGS_FILE}.tmp" "$SETTINGS_FILE"
+  cp "$SETTINGS_FILE" "${SETTINGS_FILE}.backup"
+  echo "✓ Backed up existing settings"
 else
-  echo "{\"hooks\":{\"PreToolUse\":\"$HOOK_PATH\",\"PostToolUse\":\"$HOOK_PATH\",\"Stop\":\"$HOOK_PATH\"}}" > "$SETTINGS_FILE"
+  echo '{}' > "$SETTINGS_FILE"
 fi
+
+# Update settings with correct hook format
+jq --arg hook "$HOOK_PATH" '
+  .hooks = (.hooks // {}) |
+  .hooks.PreToolUse = [{"hooks": [{"type": "command", "command": $hook, "timeout": 5}]}] |
+  .hooks.PostToolUse = [{"hooks": [{"type": "command", "command": $hook, "timeout": 5}]}] |
+  .hooks.Stop = [{"hooks": [{"type": "command", "command": $hook, "timeout": 5}]}]
+' "$SETTINGS_FILE" > "${SETTINGS_FILE}.tmp"
+mv "${SETTINGS_FILE}.tmp" "$SETTINGS_FILE"
 
 echo "✓ Configured Claude Code hooks"
 echo ""
