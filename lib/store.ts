@@ -124,8 +124,15 @@ export const useClaudeStore = create<ClaudeState>()(
       isConnected: false,
       setConnected: (connected) => set({ isConnected: connected }),
 
-      // Registry (dynamic tools & skills)
-      tools: [],
+      // Registry (dynamic tools & skills) - defaults so UI works without bridge
+      tools: [
+        { name: 'Read', icon: '📖', color: '#3B82F6' },
+        { name: 'Write', icon: '✏️', color: '#10B981' },
+        { name: 'Edit', icon: '✂️', color: '#8B5CF6' },
+        { name: 'Exec', icon: '⚡', color: '#F59E0B' },
+        { name: 'Browser', icon: '🌐', color: '#EC4899' },
+        { name: 'Search', icon: '🔍', color: '#06B6D4' },
+      ],
       skills: [],
       setRegistry: (tools, skills) => set({ tools, skills }),
 
