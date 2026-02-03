@@ -33,6 +33,16 @@ export interface RoomDef {
 }
 
 /**
+ * Subagent definition
+ */
+export interface Subagent {
+  id: string
+  room: string | null
+  context: string | null
+  spawnedAt: number
+}
+
+/**
  * ClaudeWorld State
  */
 interface ClaudeState {
@@ -48,8 +58,16 @@ interface ClaudeState {
   // Character state
   currentRoom: string | null
   isWorking: boolean
+  context: string | null  // Current file/command being worked on
   setRoom: (room: string | null) => void
   setWorking: (working: boolean) => void
+  setContext: (context: string | null) => void
+
+  // Subagents (mini-Claudes for parallel tasks)
+  subagents: Subagent[]
+  spawnSubagent: (id: string, room?: string) => void
+  updateSubagent: (id: string, room: string | null, context?: string | null) => void
+  removeSubagent: (id: string) => void
 
   // XP & Leveling
   level: number
@@ -139,8 +157,24 @@ export const useClaudeStore = create<ClaudeState>()(
       // Character state
       currentRoom: null,
       isWorking: false,
+      context: null,
       setRoom: (room) => set({ currentRoom: room, isWorking: !!room }),
       setWorking: (working) => set({ isWorking: working }),
+      setContext: (context) => set({ context }),
+
+      // Subagents
+      subagents: [],
+      spawnSubagent: (id, room = null) => set(state => ({
+        subagents: [...state.subagents, { id, room, context: null, spawnedAt: Date.now() }]
+      })),
+      updateSubagent: (id, room, context) => set(state => ({
+        subagents: state.subagents.map(s => 
+          s.id === id ? { ...s, room, context: context ?? s.context } : s
+        )
+      })),
+      removeSubagent: (id) => set(state => ({
+        subagents: state.subagents.filter(s => s.id !== id)
+      })),
 
       // XP & Leveling
       level: 1,

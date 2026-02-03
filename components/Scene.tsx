@@ -106,12 +106,24 @@ function SceneContent({
   currentRoom: string | null
   isWorking: boolean
 }) {
-  const { tools, skills } = useClaudeStore()
+  const { tools, skills, context, subagents } = useClaudeStore()
   
   const claudePosition = useMemo(() => {
-    if (!currentRoom) return [0, 0.7, 0.5] as [number, number, number]
+    if (!currentRoom) return [0, CLAUDE_Y_OFFSET, 0.5] as [number, number, number]
     return calculateRoomPosition(currentRoom, tools, skills)
   }, [currentRoom, tools, skills])
+
+  // Calculate positions for subagents (offset from main rooms)
+  const subagentPositions = useMemo(() => {
+    return subagents.map((sub, idx) => {
+      const basePos = sub.room 
+        ? calculateRoomPosition(sub.room, tools, skills)
+        : [0, CLAUDE_Y_OFFSET, 0.5] as [number, number, number]
+      // Offset slightly so they don't overlap
+      const offset = (idx + 1) * 0.8
+      return [basePos[0] + offset, basePos[1], basePos[2] + 0.5] as [number, number, number]
+    })
+  }, [subagents, tools, skills])
 
   return (
     <>
@@ -169,12 +181,27 @@ function SceneContent({
       {/* Office Building */}
       <Office currentRoom={currentRoom} />
 
-      {/* Claude Character */}
+      {/* Main Claude Character */}
       <Claude
         position={claudePosition}
         isWorking={isWorking}
         targetPosition={claudePosition}
+        context={context}
+        id="main"
       />
+
+      {/* Subagent Mini-Claudes */}
+      {subagents.map((sub, idx) => (
+        <Claude
+          key={sub.id}
+          position={subagentPositions[idx]}
+          isWorking={true}
+          targetPosition={subagentPositions[idx]}
+          context={sub.context}
+          isSubagent={true}
+          id={sub.id}
+        />
+      ))}
 
       {/* Ambient particles */}
       <Particles />

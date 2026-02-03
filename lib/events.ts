@@ -1,4 +1,5 @@
 import { useClaudeStore } from './store'
+import { soundManager } from './sounds'
 
 /**
  * Event types from Claude Code
@@ -10,7 +11,10 @@ export type ClaudeEventType =
   | 'xp_gain' 
   | 'level_up' 
   | 'task_complete'
+  | 'task_spawn'    // Subagent spawned
+  | 'task_end'      // Subagent finished
   | 'error'
+  | 'connected'
 
 /**
  * Event payload
@@ -24,6 +28,10 @@ export interface ClaudeWorldEvent {
     level?: number      // New level (for level_up)
     message?: string    // For errors or info
     duration?: number   // How long an action took (ms)
+    context?: string    // File path or command being worked on
+    taskId?: string     // Subagent task ID
+    file?: string       // File being read/written
+    command?: string    // Command being executed
   }
   timestamp: number
 }
@@ -125,6 +133,10 @@ export function handleClaudeEvent(event: ClaudeWorldEvent): void {
   const store = useClaudeStore.getState()
   
   switch (event.type) {
+    case 'connected':
+      soundManager.connected()
+      break
+      
     case 'skill_start':
       handleSkillStart(event.payload.skill!)
       break
@@ -134,7 +146,7 @@ export function handleClaudeEvent(event: ClaudeWorldEvent): void {
       break
       
     case 'tool_use':
-      handleToolUse(event.payload.tool!)
+      handleToolUse(event.payload.tool!, event.payload)
       break
       
     case 'xp_gain':
@@ -147,6 +159,14 @@ export function handleClaudeEvent(event: ClaudeWorldEvent): void {
       
     case 'task_complete':
       handleTaskComplete()
+      break
+
+    case 'task_spawn':
+      handleTaskSpawn(event.payload.taskId!, event.payload.tool)
+      break
+
+    case 'task_end':
+      handleTaskEnd(event.payload.taskId!)
       break
       
     case 'error':
@@ -195,11 +215,18 @@ function handleSkillEnd(skill: string): void {
 /**
  * Tool used - briefly visit tool station
  */
-function handleToolUse(tool: string): void {
+function handleToolUse(tool: string, payload: ClaudeWorldEvent['payload']): void {
   const store = useClaudeStore.getState()
   const room = getToolRoom(tool)
   
   console.log(`🔧 Using tool: ${tool} → room: ${room}`)
+  
+  // Set context (file path or command)
+  const context = payload.file || payload.command || payload.context || null
+  store.setContext(context)
+  
+  // Play tool sound
+  soundManager.toolUse(room)
   
   // If not in a skill room, go to tool station
   if (!store.currentRoom || TOOL_ROOMS[store.currentRoom]) {
@@ -210,8 +237,9 @@ function handleToolUse(tool: string): void {
       const current = useClaudeStore.getState().currentRoom
       if (current === room) {
         store.setRoom(null)
+        store.setContext(null)
       }
-    }, 2000)
+    }, 3000)
   }
   
   // Award tool XP
@@ -245,6 +273,7 @@ function trackToolUsage(tool: string): void {
 function handleXPGain(amount: number): void {
   const store = useClaudeStore.getState()
   store.addXP(amount)
+  soundManager.xpGain(amount)
 }
 
 /**
@@ -253,6 +282,7 @@ function handleXPGain(amount: number): void {
 function handleLevelUp(level: number): void {
   const store = useClaudeStore.getState()
   store.setShowLevelUp(true)
+  soundManager.levelUp()
   
   // Hide celebration after 3 seconds
   setTimeout(() => {
@@ -266,6 +296,7 @@ function handleLevelUp(level: number): void {
 function handleTaskComplete(): void {
   const store = useClaudeStore.getState()
   store.addXP(XP_REWARDS.task_complete)
+  soundManager.achievement()
 }
 
 /**
@@ -273,7 +304,33 @@ function handleTaskComplete(): void {
  */
 function handleError(message: string): void {
   console.error('Claude Code error:', message)
-  // Could show error toast in UI
+  soundManager.error()
+}
+
+/**
+ * Subagent/Task spawned
+ */
+function handleTaskSpawn(taskId: string, tool?: string): void {
+  const store = useClaudeStore.getState()
+  const room = tool ? getToolRoom(tool) : 'Exec'
+  
+  console.log(`👶 Subagent spawned: ${taskId} → ${room}`)
+  store.spawnSubagent(taskId, room)
+  soundManager.subagentSpawn()
+}
+
+/**
+ * Subagent/Task completed
+ */
+function handleTaskEnd(taskId: string): void {
+  const store = useClaudeStore.getState()
+  
+  console.log(`✅ Subagent finished: ${taskId}`)
+  
+  // Keep subagent visible briefly before removing
+  setTimeout(() => {
+    useClaudeStore.getState().removeSubagent(taskId)
+  }, 2000)
 }
 
 /**
