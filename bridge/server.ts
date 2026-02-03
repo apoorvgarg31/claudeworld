@@ -105,6 +105,41 @@ const httpServer = createServer((req, res) => {
     return
   }
   
+  // API endpoint to send prompt to Claude via tmux
+  if (req.url === '/api/prompt' && req.method === 'POST') {
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      try {
+        const { prompt, session = 'claude' } = JSON.parse(body)
+        if (!prompt) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Missing prompt' }))
+          return
+        }
+        
+        // Send to tmux session
+        const { exec } = require('child_process')
+        const escaped = prompt.replace(/'/g, "'\\''")
+        exec(`tmux send-keys -t ${session} -l '${escaped}' && sleep 0.1 && tmux send-keys -t ${session} Enter`, (err: any) => {
+          if (err) {
+            console.error('tmux error:', err.message)
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'Failed to send to tmux', details: err.message }))
+            return
+          }
+          console.log(`📤 Sent prompt to tmux session '${session}'`)
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: true }))
+        })
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Invalid JSON' }))
+      }
+    })
+    return
+  }
+
   res.writeHead(404)
   res.end('Not found')
 })

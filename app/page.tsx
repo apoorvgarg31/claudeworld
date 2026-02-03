@@ -6,6 +6,7 @@ import { useClaudeStore } from '@/lib/store'
 import { initializeSocket } from '@/lib/socket'
 import HUD from '@/components/HUD'
 import XPPopup from '@/components/XPPopup'
+import Chat from '@/components/Chat'
 
 // Dynamic import for Spline to avoid SSR issues
 const Scene = dynamic(() => import('@/components/Scene'), {
@@ -59,6 +60,9 @@ export default function Home() {
           {isConnected ? 'Connected to Claude Code' : 'Waiting for connection...'}
         </span>
       </div>
+
+      {/* Chat Input */}
+      <Chat />
 
       {/* Version badge */}
       <div className="absolute bottom-4 right-4 text-xs text-gray-500">
