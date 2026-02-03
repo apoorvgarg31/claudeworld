@@ -24,12 +24,26 @@ export interface XPPopup {
 }
 
 /**
+ * Tool/Skill definition
+ */
+export interface RoomDef {
+  name: string
+  icon: string
+  color: string
+}
+
+/**
  * ClaudeWorld State
  */
 interface ClaudeState {
   // Connection
   isConnected: boolean
   setConnected: (connected: boolean) => void
+
+  // Registry (dynamic tools & skills)
+  tools: RoomDef[]
+  skills: RoomDef[]
+  setRegistry: (tools: RoomDef[], skills: RoomDef[]) => void
 
   // Character state
   currentRoom: string | null
@@ -109,6 +123,11 @@ export const useClaudeStore = create<ClaudeState>()(
       // Connection
       isConnected: false,
       setConnected: (connected) => set({ isConnected: connected }),
+
+      // Registry (dynamic tools & skills)
+      tools: [],
+      skills: [],
+      setRegistry: (tools, skills) => set({ tools, skills }),
 
       // Character state
       currentRoom: null,

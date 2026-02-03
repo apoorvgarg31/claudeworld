@@ -13,6 +13,25 @@ import { createServer } from 'http'
 
 const PORT = process.env.BRIDGE_PORT || 3030
 
+// Dynamic registry - tools and skills register themselves
+const registry = {
+  tools: new Map<string, { name: string; icon: string; color: string }>(),
+  skills: new Map<string, { name: string; icon: string; color: string }>(),
+}
+
+// Default tools (always available in Claude Code)
+const DEFAULT_TOOLS = [
+  { name: 'Read', icon: '📖', color: '#3B82F6' },
+  { name: 'Write', icon: '✏️', color: '#10B981' },
+  { name: 'Edit', icon: '✂️', color: '#8B5CF6' },
+  { name: 'Exec', icon: '⚡', color: '#F59E0B' },
+  { name: 'Browser', icon: '🌐', color: '#EC4899' },
+  { name: 'Search', icon: '🔍', color: '#06B6D4' },
+]
+
+// Initialize default tools
+DEFAULT_TOOLS.forEach(t => registry.tools.set(t.name.toLowerCase(), t))
+
 // Create HTTP server
 const httpServer = createServer((req, res) => {
   // Simple health check endpoint
@@ -26,6 +45,48 @@ const httpServer = createServer((req, res) => {
     return
   }
   
+  // API endpoint to get registry (tools & skills)
+  if (req.url === '/api/registry' && req.method === 'GET') {
+    res.writeHead(200, { 
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    })
+    res.end(JSON.stringify({
+      tools: Array.from(registry.tools.values()),
+      skills: Array.from(registry.skills.values()),
+    }))
+    return
+  }
+
+  // API endpoint to register a skill
+  if (req.url === '/api/register' && req.method === 'POST') {
+    let body = ''
+    req.on('data', chunk => { body += chunk })
+    req.on('end', () => {
+      try {
+        const { type, name, icon, color } = JSON.parse(body)
+        if (type === 'skill') {
+          registry.skills.set(name.toLowerCase(), { name, icon: icon || '🔧', color: color || '#666' })
+          console.log(`📦 Skill registered: ${name}`)
+        } else if (type === 'tool') {
+          registry.tools.set(name.toLowerCase(), { name, icon: icon || '🔧', color: color || '#666' })
+          console.log(`🔧 Tool registered: ${name}`)
+        }
+        // Broadcast registry update
+        io.emit('registry:update', {
+          tools: Array.from(registry.tools.values()),
+          skills: Array.from(registry.skills.values()),
+        })
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+      } catch (e) {
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ error: 'Invalid JSON' }))
+      }
+    })
+    return
+  }
+
   // API endpoint to send events
   if (req.url === '/api/event' && req.method === 'POST') {
     let body = ''

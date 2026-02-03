@@ -52,6 +52,15 @@ export async function initializeSocket(): Promise<() => void> {
       version: '0.1.0',
       timestamp: Date.now(),
     })
+
+    // Fetch initial registry
+    fetch(`${SOCKET_URL}/api/registry`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('📦 Registry loaded:', data)
+        useClaudeStore.getState().setRegistry(data.tools || [], data.skills || [])
+      })
+      .catch(err => console.warn('Failed to load registry:', err))
   })
 
   socket.on('disconnect', (reason) => {
@@ -76,6 +85,12 @@ export async function initializeSocket(): Promise<() => void> {
   socket.on('claude:event', (event: ClaudeWorldEvent) => {
     console.log('📨 Received event:', event.type, event.payload)
     handleClaudeEvent(event)
+  })
+
+  // Registry updates (new tools/skills registered)
+  socket.on('registry:update', (data: { tools: any[]; skills: any[] }) => {
+    console.log('📦 Registry updated:', data)
+    useClaudeStore.getState().setRegistry(data.tools || [], data.skills || [])
   })
 
   // Heartbeat to keep connection alive

@@ -17,20 +17,41 @@ import { useClaudeStore } from '@/lib/store'
 import Office from './three/Office'
 import Claude from './three/Claude'
 
-// Room position mapping for Claude character
-const ROOM_POSITIONS: Record<string, [number, number, number]> = {
-  // Lobby (default)
-  lobby: [0, 0.7, 0.5],
-  // Tools floor (floor 2)
-  Read: [-3.5, 2.85, 0.5],
-  Write: [-1.2, 2.85, 0.5],
-  Exec: [1.2, 2.85, 0.5],
-  Browse: [3.5, 2.85, 0.5],
-  // Skills floor (floor 3)
-  'dev-workflow': [-3.5, 5, 0.5],
-  orchestra: [-1.2, 5, 0.5],
-  'test-regression': [1.2, 5, 0.5],
-  'pdf-data': [3.5, 5, 0.5],
+// Constants for position calculation
+const FLOOR_HEIGHT = 2
+const FLOOR_GAP = 0.15
+const ROOMS_PER_FLOOR = 4
+const X_POSITIONS = [-3.5, -1.2, 1.2, 3.5]
+
+/**
+ * Calculate room position dynamically based on registry
+ */
+function calculateRoomPosition(
+  roomName: string,
+  tools: { name: string }[],
+  skills: { name: string }[]
+): [number, number, number] {
+  // Check if it's a tool
+  const toolIndex = tools.findIndex(t => t.name.toLowerCase() === roomName.toLowerCase())
+  if (toolIndex !== -1) {
+    const floor = Math.floor(toolIndex / ROOMS_PER_FLOOR) + 1 // Tools start at floor 1
+    const posIndex = toolIndex % ROOMS_PER_FLOOR
+    const y = floor * (FLOOR_HEIGHT + FLOOR_GAP) + 0.7
+    return [X_POSITIONS[posIndex], y, 0.5]
+  }
+
+  // Check if it's a skill
+  const skillIndex = skills.findIndex(s => s.name.toLowerCase() === roomName.toLowerCase())
+  if (skillIndex !== -1) {
+    const toolFloors = Math.ceil(tools.length / ROOMS_PER_FLOOR)
+    const floor = toolFloors + Math.floor(skillIndex / ROOMS_PER_FLOOR) + 1
+    const posIndex = skillIndex % ROOMS_PER_FLOOR
+    const y = floor * (FLOOR_HEIGHT + FLOOR_GAP) + 0.7
+    return [X_POSITIONS[posIndex], y, 0.5]
+  }
+
+  // Default: lobby
+  return [0, 0.7, 0.5]
 }
 
 /**
@@ -81,11 +102,12 @@ function SceneContent({
   currentRoom: string | null
   isWorking: boolean
 }) {
+  const { tools, skills } = useClaudeStore()
+  
   const claudePosition = useMemo(() => {
-    return currentRoom && ROOM_POSITIONS[currentRoom]
-      ? ROOM_POSITIONS[currentRoom]
-      : ROOM_POSITIONS.lobby
-  }, [currentRoom])
+    if (!currentRoom) return [0, 0.7, 0.5] as [number, number, number]
+    return calculateRoomPosition(currentRoom, tools, skills)
+  }, [currentRoom, tools, skills])
 
   return (
     <>
