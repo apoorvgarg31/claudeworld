@@ -16,6 +16,8 @@ export type ClaudeEventType =
   | 'level_up' 
   | 'task_complete'
   | 'connected'
+  | 'chat_response'  // Claude's reply to user chat
+  | 'thinking'       // Claude's working status
 
 export interface ClaudeWorldEvent {
   type: ClaudeEventType
@@ -29,6 +31,8 @@ export interface ClaudeWorldEvent {
     branch?: string      // For commits
     files?: string[]     // Files changed in commit
     task?: string        // Task description
+    response?: string    // Chat response text
+    status?: string      // Thinking status text
   }
   timestamp: number
 }

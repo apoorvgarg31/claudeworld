@@ -312,6 +312,54 @@ function createServer(): McpServer {
     }
   )
 
+  // Tool: reply - Send a chat message to the ClaudeWorld UI
+  server.tool(
+    'reply',
+    'Send a chat message response to the ClaudeWorld UI. Use this to respond to user messages in the chat panel.',
+    {
+      message: z.string().describe('The message to display in the chat')
+    },
+    async ({ message }) => {
+      const event: ClaudeWorldEvent = {
+        type: 'chat_response',
+        payload: { response: message, xp: 5 },
+        timestamp: Date.now()
+      }
+      sendEvent(event)
+      
+      return {
+        content: [{
+          type: 'text',
+          text: `💬 Sent response to ClaudeWorld chat (+5 XP)`
+        }]
+      }
+    }
+  )
+
+  // Tool: think - Show thinking/working status in the UI
+  server.tool(
+    'think',
+    'Show a thinking/working status message in the ClaudeWorld UI',
+    {
+      status: z.string().describe('What you are thinking about or working on')
+    },
+    async ({ status }) => {
+      const event: ClaudeWorldEvent = {
+        type: 'thinking',
+        payload: { status },
+        timestamp: Date.now()
+      }
+      sendEvent(event)
+      
+      return {
+        content: [{
+          type: 'text',
+          text: `🤔 Showing: "${status}"`
+        }]
+      }
+    }
+  )
+
   return server
 }
 

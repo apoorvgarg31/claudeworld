@@ -27,7 +27,27 @@ export default function Chat() {
     const handleClaudeEvent = (event: CustomEvent) => {
       const { type, payload } = event.detail
       
-      // Handle stop event with response
+      // Handle chat_response from MCP server (primary method)
+      if (type === 'chat_response' && payload?.response) {
+        setMessages(prev => [...prev, {
+          id: `claude-${Date.now()}`,
+          type: 'claude',
+          content: payload.response,
+          timestamp: Date.now(),
+        }])
+      }
+      
+      // Handle thinking status
+      if (type === 'thinking' && payload?.status) {
+        setMessages(prev => [...prev, {
+          id: `thinking-${Date.now()}`,
+          type: 'system',
+          content: `💭 ${payload.status}`,
+          timestamp: Date.now(),
+        }])
+      }
+      
+      // Handle stop event with response (fallback from hooks)
       if (type === 'stop' && payload?.response) {
         setMessages(prev => [...prev, {
           id: `claude-${Date.now()}`,

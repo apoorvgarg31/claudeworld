@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "claudeworld": {
+      "command": "node",
+      "args": ["./mcp/dist/index.js"],
+      "env": {
+        "CLAUDEWORLD_BRIDGE_URL": "ws://localhost:3030"
+      }
+    }
+  }
+}

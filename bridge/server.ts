@@ -1,16 +1,24 @@
 /**
  * ClaudeWorld Bridge Server
  * 
- * Simple WebSocket bridge for sending prompts to Claude Code via tmux.
+ * Bridges between:
+ * - Browser (Socket.IO) - for the ClaudeWorld UI
+ * - MCP Server (WebSocket) - for Claude Code events
+ * - tmux - for sending prompts to Claude Code
+ * 
  * Run with: npm run bridge
  */
 
-import { Server } from 'socket.io'
+import { Server as SocketIOServer } from 'socket.io'
+import { WebSocketServer, WebSocket } from 'ws'
 import { createServer } from 'http'
 import { exec } from 'child_process'
 
 const PORT = process.env.BRIDGE_PORT || 3030
 const TMUX_SESSION = process.env.TMUX_SESSION || 'claude'
+
+// Track connected clients
+const mcpClients = new Set<WebSocket>()
 
 // Create HTTP server
 const httpServer = createServer((req, res) => {
@@ -29,7 +37,8 @@ const httpServer = createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(JSON.stringify({ 
       status: 'ok', 
-      clients: io.engine.clientsCount,
+      browserClients: io.engine.clientsCount,
+      mcpClients: mcpClients.size,
       tmuxSession: TMUX_SESSION
     }))
     return
@@ -69,15 +78,15 @@ const httpServer = createServer((req, res) => {
     return
   }
 
-  // Event endpoint (for hooks)
+  // Event endpoint (for hooks - fallback)
   if (req.url === '/api/event' && req.method === 'POST') {
     let body = ''
     req.on('data', chunk => { body += chunk })
     req.on('end', () => {
       try {
         const event = JSON.parse(body)
-        console.log(`📡 Event: ${event.type}`, event.payload?.tool || '')
-        io.emit('claude:event', { ...event, timestamp: Date.now() })
+        console.log(`📡 HTTP Event: ${event.type}`, event.payload?.tool || event.payload?.response?.slice(0, 30) || '')
+        broadcastEvent(event)
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ success: true }))
       } catch (e) {
@@ -92,22 +101,83 @@ const httpServer = createServer((req, res) => {
   res.end('Not found')
 })
 
-// WebSocket server
-const io = new Server(httpServer, {
+// Socket.IO server for browser clients
+const io = new SocketIOServer(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
 })
 
 io.on('connection', (socket) => {
-  console.log(`🔌 Connected: ${socket.id}`)
+  console.log(`🌐 Browser connected: ${socket.id}`)
   
   socket.on('client:ready', () => {
     socket.emit('claude:event', { type: 'connected', timestamp: Date.now() })
   })
   
   socket.on('disconnect', () => {
-    console.log(`❌ Disconnected: ${socket.id}`)
+    console.log(`🌐 Browser disconnected: ${socket.id}`)
   })
 })
+
+// Raw WebSocket server for MCP clients (uses same HTTP server, different path)
+const wss = new WebSocketServer({ noServer: true })
+
+wss.on('connection', (ws) => {
+  console.log(`🔧 MCP client connected`)
+  mcpClients.add(ws)
+  
+  ws.on('message', (data) => {
+    try {
+      const event = JSON.parse(data.toString())
+      console.log(`📡 MCP Event: ${event.type}`, event.payload?.tool || event.payload?.response?.slice(0, 30) || '')
+      broadcastEvent(event)
+    } catch (e) {
+      console.error('Invalid MCP message:', e)
+    }
+  })
+  
+  ws.on('close', () => {
+    console.log(`🔧 MCP client disconnected`)
+    mcpClients.delete(ws)
+  })
+  
+  ws.on('error', (err) => {
+    console.error('MCP WebSocket error:', err.message)
+    mcpClients.delete(ws)
+  })
+})
+
+// Handle upgrade requests - route to Socket.IO or raw WebSocket
+httpServer.on('upgrade', (request, socket, head) => {
+  const pathname = request.url || ''
+  
+  // Socket.IO handles its own upgrades via /socket.io/
+  if (pathname.startsWith('/socket.io')) {
+    return // Let Socket.IO handle it
+  }
+  
+  // All other WebSocket connections go to raw WS (for MCP)
+  wss.handleUpgrade(request, socket, head, (ws) => {
+    wss.emit('connection', ws, request)
+  })
+})
+
+/**
+ * Broadcast an event to all connected clients (browser + MCP)
+ */
+function broadcastEvent(event: any): void {
+  const eventWithTimestamp = { ...event, timestamp: event.timestamp || Date.now() }
+  
+  // Send to browser clients via Socket.IO
+  io.emit('claude:event', eventWithTimestamp)
+  
+  // Send to MCP clients via raw WebSocket (for sync)
+  const msg = JSON.stringify(eventWithTimestamp)
+  mcpClients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(msg)
+    }
+  })
+}
 
 // Start
 httpServer.listen(PORT, () => {
@@ -115,8 +185,10 @@ httpServer.listen(PORT, () => {
 ╔══════════════════════════════════════════════════════╗
 ║  🚀 ClaudeWorld Bridge                               ║
 ║                                                      ║
-║  Send prompts: POST http://localhost:${PORT}/api/prompt ║
-║  Events:       POST http://localhost:${PORT}/api/event  ║
+║  Browser (Socket.IO): ws://localhost:${PORT}/socket.io  ║
+║  MCP Server (WS):     ws://localhost:${PORT}            ║
+║  HTTP Events:         POST /api/event               ║
+║  Send Prompt:         POST /api/prompt              ║
 ║                                                      ║
 ║  tmux session: ${TMUX_SESSION.padEnd(38)}║
 ╚══════════════════════════════════════════════════════╝
