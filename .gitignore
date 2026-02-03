@@ -1,5 +1,7 @@
 # Dependencies
 /node_modules
+mcp/node_modules
+mcp/dist
 /.pnp
 .pnp.js
 .yarn/install-state.gz
