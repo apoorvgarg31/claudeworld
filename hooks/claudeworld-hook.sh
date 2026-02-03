@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ClaudeWorld Hook - Captures Claude Code events for 3D visualization
 # Based on Vibecraft's approach
 #

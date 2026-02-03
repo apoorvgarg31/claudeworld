@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ClaudeWorld - Start everything with one command
 # Usage: ./start.sh [--with-claude]
 

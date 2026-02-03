@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ClaudeWorld Hook Setup
 # Configures Claude Code to send events to ClaudeWorld
 
