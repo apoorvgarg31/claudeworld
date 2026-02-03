@@ -86,15 +86,13 @@ export async function initializeSocket(): Promise<() => void> {
     console.log('📨 Received event:', event.type, event.payload)
     handleClaudeEvent(event)
     
-    // Forward claude_output to window for Chat component
-    if (event.type === 'claude_output' && event.payload) {
-      window.dispatchEvent(new CustomEvent('claude:output', { 
-        detail: event.payload 
-      }))
-    }
+    // Forward ALL events to window for Chat component
+    window.dispatchEvent(new CustomEvent('claude:event', { 
+      detail: { type: event.type, payload: event.payload }
+    }))
   })
   
-  // Expose socket globally for Chat component
+  // Expose socket globally
   ;(window as any).__claudeSocket = socket
 
   // Registry updates (new tools/skills registered)
