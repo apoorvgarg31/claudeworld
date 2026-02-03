@@ -7,6 +7,7 @@ import { initializeSocket } from '@/lib/socket'
 import HUD from '@/components/HUD'
 import XPPopup from '@/components/XPPopup'
 import Chat from '@/components/Chat'
+import Feed from '@/components/Feed'
 
 // Dynamic import for Spline to avoid SSR issues
 const Scene = dynamic(() => import('@/components/Scene'), {
@@ -41,6 +42,9 @@ export default function Home() {
       
       {/* HUD Overlay */}
       <HUD />
+      
+      {/* Activity Feed */}
+      <Feed />
       
       {/* XP Popups */}
       <div className="absolute inset-0 pointer-events-none">

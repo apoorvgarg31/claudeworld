@@ -98,8 +98,30 @@ case "$hook_event_name" in
     ;;
     
   Stop)
-    # Claude stopped - return to lobby
+    # Claude stopped - capture response and return to lobby
+    transcript_path=$(echo "$input" | "$JQ" -r '.transcript_path // ""')
+    
+    # Try to get Claude's last response from transcript
+    response=""
+    if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
+      response=$(tail -100 "$transcript_path" | "$JQ" -rs '
+        [.[] | select(.type == "assistant")] | last | 
+        .message.content | map(select(.type == "text")) | 
+        map(.text) | join("\n")
+      ' 2>/dev/null || echo "")
+    fi
+    
     if [ -n "$CURL" ]; then
+      # Send response event
+      if [ -n "$response" ]; then
+        escaped_response=$(echo "$response" | "$JQ" -Rs '.')
+        "$CURL" -s -X POST "${BRIDGE_URL}/api/event" \
+          -H "Content-Type: application/json" \
+          -d "{\"type\":\"response\",\"payload\":{\"response\":${escaped_response}},\"timestamp\":${timestamp}}" \
+          > /dev/null 2>&1 &
+      fi
+      
+      # Return to lobby
       "$CURL" -s -X POST "${BRIDGE_URL}/api/event" \
         -H "Content-Type: application/json" \
         -d "{\"type\":\"skill_end\",\"payload\":{\"skill\":\"lobby\"},\"timestamp\":${timestamp}}" \

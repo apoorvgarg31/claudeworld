@@ -141,6 +141,14 @@ const httpServer = createServer((req, res) => {
             return
           }
           console.log(`📤 Sent prompt to tmux session '${session}'`)
+          
+          // Broadcast prompt to all clients
+          broadcastEvent({
+            type: 'prompt',
+            payload: { prompt },
+            timestamp: Date.now(),
+          })
+          
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ success: true }))
         })
