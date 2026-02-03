@@ -27,31 +27,50 @@ npm install
 npm run build
 ```
 
-## Configuration
+## Setup (2 steps)
 
-### Add to Claude Code
+### Step 1: Build the MCP server
 
-Add to your Claude Code MCP configuration (`~/.config/claude-code/mcp.json` or similar):
+```bash
+cd claudeworld/mcp
+npm install
+npm run build
+```
+
+### Step 2: Add to Claude Code
+
+Run this command (replace the path with your actual path):
+
+```bash
+claude mcp add claudeworld node /path/to/claudeworld/mcp/dist/index.js
+```
+
+**Example (macOS):**
+```bash
+claude mcp add claudeworld node ~/Developer/claudeworld/mcp/dist/index.js
+```
+
+**Example (Linux):**
+```bash
+claude mcp add claudeworld node ~/claudeworld/mcp/dist/index.js
+```
+
+That's it! Restart Claude Code and the MCP server will auto-connect.
+
+### Manual config (alternative)
+
+If you prefer, edit `~/.claude.json` and add:
 
 ```json
 {
   "mcpServers": {
     "claudeworld": {
       "command": "node",
-      "args": ["/path/to/claudeworld/mcp/dist/index.js"],
-      "env": {
-        "CLAUDEWORLD_BRIDGE_URL": "ws://localhost:3030"
-      }
+      "args": ["/full/path/to/claudeworld/mcp/dist/index.js"]
     }
   }
 }
 ```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLAUDEWORLD_BRIDGE_URL` | `ws://localhost:3030` | WebSocket URL of the bridge server |
 
 ## MCP Tools
 

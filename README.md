@@ -119,17 +119,12 @@ npm install
 npm run build
 ```
 
-**Add to your Claude Code config** (`~/.claude/config.json`):
-```json
-{
-  "mcpServers": {
-    "claudeworld": {
-      "command": "node",
-      "args": ["/path/to/claudeworld/mcp/dist/index.js"]
-    }
-  }
-}
+**Add to Claude Code (one command):**
+```bash
+claude mcp add claudeworld node /path/to/claudeworld/mcp/dist/index.js
 ```
+
+Restart Claude Code and you're done!
 
 **XP Rewards:**
 | Event | XP |
