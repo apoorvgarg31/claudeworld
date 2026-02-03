@@ -2,7 +2,7 @@
 
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text, RoundedBox } from '@react-three/drei'
+import { Html, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 
 interface RoomProps {
@@ -159,15 +159,16 @@ export default function Room({
 
       {/* Room label */}
       <group position={[0, size[1] + 0.3, 0]}>
-        <Text
-          fontSize={0.18}
-          color={isActive ? glowColor : '#888'}
-          anchorX="center"
-          anchorY="middle"
-          font="/fonts/inter-bold.woff"
-        >
-          {name}
-        </Text>
+        <Html center transform>
+          <div style={{ 
+            color: isActive ? glowColor : '#888', 
+            fontSize: '12px', 
+            fontWeight: 'bold', 
+            whiteSpace: 'nowrap' 
+          }}>
+            {name}
+          </div>
+        </Html>
       </group>
 
       {/* Desk/workstation inside */}

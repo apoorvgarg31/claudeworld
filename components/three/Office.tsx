@@ -2,7 +2,7 @@
 
 import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { RoundedBox, Text } from '@react-three/drei'
+import { RoundedBox, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import Room from './Room'
 
@@ -245,16 +245,11 @@ export default function Office({ currentRoom }: OfficeProps) {
             emissiveIntensity={0.2}
           />
         </RoundedBox>
-        <Text
-          position={[0, 0, 0.06]}
-          fontSize={0.25}
-          color="#D97706"
-          anchorX="center"
-          anchorY="middle"
-          font="/fonts/inter-bold.woff"
-        >
-          CLAUDEWORLD
-        </Text>
+        <Html position={[0, 0, 0.06]} center transform>
+          <div style={{ color: '#D97706', fontSize: '14px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+            CLAUDEWORLD
+          </div>
+        </Html>
       </group>
     </group>
   )
@@ -273,16 +268,11 @@ function FloorPlate({ y, label }: { y: number; label: string }) {
           emissiveIntensity={0.1}
         />
       </RoundedBox>
-      <Text
-        position={[0, 0, 0.06]}
-        fontSize={0.12}
-        color="#D97706"
-        anchorX="center"
-        anchorY="middle"
-        font="/fonts/inter-bold.woff"
-      >
-        {label}
-      </Text>
+      <Html position={[0, 0, 0.06]} center transform>
+        <div style={{ color: '#D97706', fontSize: '10px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+          {label}
+        </div>
+      </Html>
     </group>
   )
 }
