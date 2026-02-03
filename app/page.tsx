@@ -26,8 +26,11 @@ export default function Home() {
 
   useEffect(() => {
     // Initialize WebSocket connection
-    const cleanup = initializeSocket()
-    return cleanup
+    let cleanup: (() => void) | undefined
+    initializeSocket().then((fn) => {
+      cleanup = fn
+    })
+    return () => cleanup?.()
   }, [])
 
   return (

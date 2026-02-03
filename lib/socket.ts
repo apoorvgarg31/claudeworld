@@ -1,8 +1,9 @@
-import { io, Socket } from 'socket.io-client'
 import { useClaudeStore } from './store'
 import { handleClaudeEvent, ClaudeWorldEvent } from './events'
+import type { Socket } from 'socket.io-client'
 
 let socket: Socket | null = null
+let io: typeof import('socket.io-client').io | null = null
 
 /**
  * Default WebSocket server URL
@@ -13,7 +14,18 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_BRIDGE_URL || 'http://localhost:3030'
 /**
  * Initialize WebSocket connection to Claude Code bridge
  */
-export function initializeSocket(): () => void {
+export async function initializeSocket(): Promise<() => void> {
+  // Only run on client
+  if (typeof window === 'undefined') {
+    return () => {}
+  }
+
+  // Dynamic import to avoid SSR issues
+  if (!io) {
+    const socketIO = await import('socket.io-client')
+    io = socketIO.io
+  }
+
   if (socket?.connected) {
     console.log('🔌 Socket already connected')
     return () => {}
