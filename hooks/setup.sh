@@ -1,48 +1,45 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # ClaudeWorld Hook Setup
+# Installs hooks into Claude Code settings
 
 set -e
 
-HOOK_PATH="$HOME/.claudeworld/hooks/claudeworld-hook.sh"
-SETTINGS_FILE="$HOME/.claude/settings.json"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SOURCE_HOOK="$SCRIPT_DIR/claudeworld-hook.sh"
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 
-echo "🌍 ClaudeWorld Hook Setup"
-echo ""
+echo "🚀 Setting up ClaudeWorld hooks..."
 
-# Create directories
-mkdir -p "$HOME/.claudeworld/hooks"
-mkdir -p "$HOME/.claude"
+# Make hooks executable
+chmod +x "$HOOKS_DIR/post-tool.sh"
+chmod +x "$HOOKS_DIR/assistant-message.sh"
 
-# Copy hook script
-cp "$SOURCE_HOOK" "$HOOK_PATH"
-chmod +x "$HOOK_PATH"
-echo "✓ Installed hook to $HOOK_PATH"
-
-# Check for jq
-if ! command -v jq &> /dev/null; then
-  echo "⚠️  jq not found. Install with: brew install jq"
-  exit 1
+# Backup existing settings
+if [ -f "$CLAUDE_SETTINGS" ]; then
+  cp "$CLAUDE_SETTINGS" "$CLAUDE_SETTINGS.backup"
+  echo "📦 Backed up existing settings"
 fi
 
-# Backup settings
-if [ -f "$SETTINGS_FILE" ]; then
-  cp "$SETTINGS_FILE" "${SETTINGS_FILE}.backup"
-  echo "✓ Backed up existing settings"
-else
-  echo '{}' > "$SETTINGS_FILE"
+# Create settings if doesn't exist
+if [ ! -f "$CLAUDE_SETTINGS" ]; then
+  mkdir -p "$(dirname "$CLAUDE_SETTINGS")"
+  echo '{}' > "$CLAUDE_SETTINGS"
 fi
 
-# Update settings with correct hook format
-jq --arg hook "$HOOK_PATH" '
+# Add hooks to settings using jq
+UPDATED=$(jq --arg postTool "$HOOKS_DIR/post-tool.sh" \
+              --arg assistantMsg "$HOOKS_DIR/assistant-message.sh" '
   .hooks = (.hooks // {}) |
-  .hooks.PreToolUse = [{"hooks": [{"type": "command", "command": $hook, "timeout": 5}]}] |
-  .hooks.PostToolUse = [{"hooks": [{"type": "command", "command": $hook, "timeout": 5}]}] |
-  .hooks.Stop = [{"hooks": [{"type": "command", "command": $hook, "timeout": 5}]}]
-' "$SETTINGS_FILE" > "${SETTINGS_FILE}.tmp"
-mv "${SETTINGS_FILE}.tmp" "$SETTINGS_FILE"
+  .hooks.postToolUse = [{ command: $postTool }] |
+  .hooks.assistantMessage = [{ command: $assistantMsg }]
+' "$CLAUDE_SETTINGS")
 
-echo "✓ Configured Claude Code hooks"
+echo "$UPDATED" > "$CLAUDE_SETTINGS"
+
+echo "✅ Hooks installed!"
 echo ""
-echo "🎉 Setup complete! Now run: npm run world"
+echo "Hooks added:"
+echo "  - postToolUse: $HOOKS_DIR/post-tool.sh"
+echo "  - assistantMessage: $HOOKS_DIR/assistant-message.sh"
+echo ""
+echo "🎮 Now run: npm run bridge"
+echo "   Then start Claude Code in tmux: tmux new -s claude && claude"
