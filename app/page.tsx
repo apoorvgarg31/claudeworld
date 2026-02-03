@@ -6,8 +6,7 @@ import { useClaudeStore } from '@/lib/store'
 import { initializeSocket } from '@/lib/socket'
 import HUD from '@/components/HUD'
 import XPPopup from '@/components/XPPopup'
-import Chat from '@/components/Chat'
-import Feed from '@/components/Feed'
+import ChatSidebar from '@/components/ChatSidebar'
 import Confetti from '@/components/Confetti'
 
 // Debug keyboard controls for testing movement
@@ -65,45 +64,32 @@ export default function Home() {
   }, [handleKeyDown])
 
   return (
-    <main className="relative w-full h-screen overflow-hidden">
-      {/* 3D Space Scene */}
-      <SpaceScene />
-      
-      {/* HUD Overlay */}
-      <HUD />
-      
-      {/* Activity Feed */}
-      <Feed />
-      
-      {/* XP Popups */}
-      <div className="absolute inset-0 pointer-events-none">
-        {xpPopups.map((popup) => (
-          <XPPopup key={popup.id} {...popup} />
-        ))}
+    <main className="relative w-full h-screen overflow-hidden flex">
+      {/* 3D Space Scene - takes remaining space */}
+      <div className="flex-1 relative">
+        <SpaceScene />
+        
+        {/* HUD Overlay */}
+        <HUD />
+        
+        {/* XP Popups */}
+        <div className="absolute inset-0 pointer-events-none">
+          {xpPopups.map((popup) => (
+            <XPPopup key={popup.id} {...popup} />
+          ))}
+        </div>
+
+        {/* Level Up Confetti */}
+        <Confetti />
+
+        {/* Version badge */}
+        <div className="absolute bottom-4 left-4 text-xs text-gray-500">
+          ClaudeWorld v0.2.0 🚀
+        </div>
       </div>
 
-      {/* Connection Status */}
-      <div className="absolute bottom-4 left-4 flex items-center gap-2">
-        <div 
-          className={`w-2 h-2 rounded-full ${
-            isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-          }`} 
-        />
-        <span className="text-xs text-gray-400">
-          {isConnected ? 'Connected to Claude Code' : 'Waiting for connection...'}
-        </span>
-      </div>
-
-      {/* Chat Input */}
-      <Chat />
-
-      {/* Level Up Confetti */}
-      <Confetti />
-
-      {/* Version badge */}
-      <div className="absolute bottom-4 right-4 text-xs text-gray-500">
-        ClaudeWorld v0.1.0
-      </div>
+      {/* Chat Sidebar - right side */}
+      <ChatSidebar />
     </main>
   )
 }
