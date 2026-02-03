@@ -108,9 +108,43 @@ socket.emit('cli:event', {
 })
 ```
 
-### Option 3: MCP Server (Coming Soon)
+### Option 3: MCP Server ✅
 
-We're building an MCP server that automatically hooks into Claude Code events.
+The MCP server automatically tracks Claude Code activity and awards XP.
+
+**Setup:**
+```bash
+cd mcp
+npm install
+npm run build
+```
+
+**Add to your Claude Code config** (`~/.claude/config.json`):
+```json
+{
+  "mcpServers": {
+    "claudeworld": {
+      "command": "node",
+      "args": ["/path/to/claudeworld/mcp/dist/index.js"]
+    }
+  }
+}
+```
+
+**XP Rewards:**
+| Event | XP |
+|-------|-----|
+| Tool use | +10 (bonus for Write/Edit/browser) |
+| Skill start/end | +25 (bonus for orchestra/debugging) |
+| Commit | +50 |
+| Task complete | +100 |
+
+**MCP Tools Available:**
+- `send_xp` — Award XP directly
+- `send_event` — Send any event type
+- `get_status` — Check XP/level/connection
+- `track_tool` — Quick tool tracking
+- `track_commit` — Quick commit tracking
 
 ---
 
@@ -177,6 +211,7 @@ interface ClaudeWorldEvent {
 - [x] State management with Zustand
 - [x] WebSocket bridge server
 - [x] HUD with XP & level display
+- [x] MCP server for Claude Code integration
 - [ ] 3D scene in Spline
 - [ ] Character animations
 - [ ] Sound effects
