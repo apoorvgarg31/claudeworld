@@ -83,8 +83,8 @@ export default function Claude({ position, isWorking, targetPosition }: ClaudePr
         isWalking.current = distance > 0.1
         
         if (isWalking.current) {
-          // Faster, smoother movement
-          currentPos.current.lerp(target, 0.08)
+          // Faster, smoother movement (increased lerp speed)
+          currentPos.current.lerp(target, 0.12)
           groupRef.current.position.copy(currentPos.current)
           
           // Walking animation - bob up and down

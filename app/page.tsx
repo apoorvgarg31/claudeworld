@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { useClaudeStore } from '@/lib/store'
 import { initializeSocket } from '@/lib/socket'
@@ -8,6 +8,9 @@ import HUD from '@/components/HUD'
 import XPPopup from '@/components/XPPopup'
 import Chat from '@/components/Chat'
 import Feed from '@/components/Feed'
+
+// Debug keyboard controls for testing movement
+const TEST_ROOMS = ['Read', 'Write', 'Exec', 'Browser', 'Search', null] as const
 
 // Dynamic import for Spline to avoid SSR issues
 const Scene = dynamic(() => import('@/components/Scene'), {
@@ -24,7 +27,24 @@ const Scene = dynamic(() => import('@/components/Scene'), {
 })
 
 export default function Home() {
-  const { isConnected, xpPopups } = useClaudeStore()
+  const { isConnected, xpPopups, setRoom, currentRoom } = useClaudeStore()
+
+  // Keyboard handler for testing movement (1-6 keys cycle rooms)
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Skip if typing in an input
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+    
+    const key = e.key
+    if (key >= '1' && key <= '6') {
+      const idx = parseInt(key) - 1
+      const room = TEST_ROOMS[idx] ?? null
+      console.log(`🎮 Key ${key}: Moving to ${room || 'lobby'}`)
+      setRoom(room)
+    } else if (key === '0' || key === 'Escape') {
+      console.log(`🎮 Returning to lobby`)
+      setRoom(null)
+    }
+  }, [setRoom])
 
   useEffect(() => {
     // Initialize WebSocket connection
@@ -32,8 +52,16 @@ export default function Home() {
     initializeSocket().then((fn) => {
       cleanup = fn
     })
-    return () => cleanup?.()
-  }, [])
+
+    // Add keyboard listener for testing
+    window.addEventListener('keydown', handleKeyDown)
+    console.log('🎮 Debug: Press 1-6 to move Claude, 0/Esc for lobby')
+    
+    return () => {
+      cleanup?.()
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleKeyDown])
 
   return (
     <main className="relative w-full h-screen overflow-hidden">

@@ -17,14 +17,17 @@ import { useClaudeStore } from '@/lib/store'
 import Office from './three/Office'
 import Claude from './three/Claude'
 
-// Constants for position calculation
+// Constants for position calculation (must match Office.tsx)
 const FLOOR_HEIGHT = 2
 const FLOOR_GAP = 0.15
 const ROOMS_PER_FLOOR = 4
 const X_POSITIONS = [-3.5, -1.2, 1.2, 3.5]
+// Claude stands on the floor, so add small offset above floor level
+const CLAUDE_Y_OFFSET = 0.6
 
 /**
  * Calculate room position dynamically based on registry
+ * Position matches the room's actual world position in Office.tsx
  */
 function calculateRoomPosition(
   roomName: string,
@@ -34,24 +37,25 @@ function calculateRoomPosition(
   // Check if it's a tool
   const toolIndex = tools.findIndex(t => t.name.toLowerCase() === roomName.toLowerCase())
   if (toolIndex !== -1) {
-    const floor = Math.floor(toolIndex / ROOMS_PER_FLOOR) + 1 // Tools start at floor 1
+    const floorNumber = Math.floor(toolIndex / ROOMS_PER_FLOOR) + 1 // Tools start at floor 1
     const posIndex = toolIndex % ROOMS_PER_FLOOR
-    const y = floor * (FLOOR_HEIGHT + FLOOR_GAP) + 0.7
-    return [X_POSITIONS[posIndex], y, 0.5]
+    // Floor group Y + Claude standing offset
+    const y = floorNumber * (FLOOR_HEIGHT + FLOOR_GAP) + CLAUDE_Y_OFFSET
+    return [X_POSITIONS[posIndex], y, 0]
   }
 
   // Check if it's a skill
   const skillIndex = skills.findIndex(s => s.name.toLowerCase() === roomName.toLowerCase())
   if (skillIndex !== -1) {
     const toolFloors = Math.ceil(tools.length / ROOMS_PER_FLOOR)
-    const floor = toolFloors + Math.floor(skillIndex / ROOMS_PER_FLOOR) + 1
+    const floorNumber = 1 + toolFloors + Math.floor(skillIndex / ROOMS_PER_FLOOR)
     const posIndex = skillIndex % ROOMS_PER_FLOOR
-    const y = floor * (FLOOR_HEIGHT + FLOOR_GAP) + 0.7
-    return [X_POSITIONS[posIndex], y, 0.5]
+    const y = floorNumber * (FLOOR_HEIGHT + FLOOR_GAP) + CLAUDE_Y_OFFSET
+    return [X_POSITIONS[posIndex], y, 0]
   }
 
-  // Default: lobby
-  return [0, 0.7, 0.5]
+  // Default: lobby (floor 0)
+  return [0, CLAUDE_Y_OFFSET, 0.5]
 }
 
 /**
@@ -111,19 +115,21 @@ function SceneContent({
 
   return (
     <>
-      {/* Camera - Top-down isometric view */}
-      <PerspectiveCamera makeDefault position={[0, 20, 12]} fov={50} />
+      {/* Camera - Isometric view like VibeCraft */}
+      <PerspectiveCamera makeDefault position={[12, 10, 12]} fov={45} />
       
       {/* Controls */}
       <OrbitControls
         enablePan={true}
         enableZoom={true}
-        minDistance={10}
-        maxDistance={35}
-        minPolarAngle={0}
-        maxPolarAngle={Math.PI / 3}
+        enableDamping={true}
+        dampingFactor={0.05}
+        minDistance={8}
+        maxDistance={50}
+        minPolarAngle={Math.PI / 6}
+        maxPolarAngle={Math.PI / 2.2}
         autoRotate={false}
-        target={[0, 2, 0]}
+        target={[0, 1.5, 0]}
       />
 
       {/* Environment & Background */}
