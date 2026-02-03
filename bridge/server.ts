@@ -34,6 +34,18 @@ DEFAULT_TOOLS.forEach(t => registry.tools.set(t.name.toLowerCase(), t))
 
 // Create HTTP server
 const httpServer = createServer((req, res) => {
+  // CORS headers for all requests
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204)
+    res.end()
+    return
+  }
+
   // Simple health check endpoint
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
@@ -147,7 +159,7 @@ const httpServer = createServer((req, res) => {
 // Create Socket.io server
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: '*',
     methods: ['GET', 'POST'],
   },
   pingTimeout: 60000,
