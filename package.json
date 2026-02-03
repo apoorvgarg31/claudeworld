@@ -9,7 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "bridge": "tsx bridge/server.ts"
+    "bridge": "tsx bridge/server.ts",
+    "world": "./start.sh",
+    "world:claude": "./start.sh --with-claude",
+    "setup": "./hooks/setup.sh"
   },
   "dependencies": {
     "@react-three/drei": "^9.99.0",
