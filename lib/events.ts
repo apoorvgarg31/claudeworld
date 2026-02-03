@@ -40,17 +40,82 @@ const XP_REWARDS = {
 } as const
 
 /**
- * Tool room mappings
+ * Tool room mappings - maps Claude Code tool names to room names
+ * Room names must match the tools array in store.ts
  */
 const TOOL_ROOMS: Record<string, string> = {
+  // Read tools
   'Read': 'Read',
-  'Write': 'Write', 
+  'read': 'Read',
+  'read_file': 'Read',
+  
+  // Write tools  
+  'Write': 'Write',
+  'write': 'Write',
   'Edit': 'Write',
+  'edit': 'Write',
+  'write_file': 'Write',
+  
+  // Exec/Bash tools
   'Exec': 'Exec',
   'exec': 'Exec',
-  'browser': 'Browse',
-  'web_search': 'Browse',
-  'web_fetch': 'Browse',
+  'Bash': 'Exec',
+  'bash': 'Exec',
+  'shell': 'Exec',
+  'Task': 'Exec',  // Task spawning
+  'task': 'Exec',
+  
+  // Browser tools
+  'Browser': 'Browser',
+  'browser': 'Browser',
+  'web_search': 'Browser',
+  'web_fetch': 'Browser',
+  'WebSearch': 'Browser',
+  'WebFetch': 'Browser',
+  
+  // Search tools
+  'Search': 'Search',
+  'search': 'Search',
+  'Grep': 'Search',
+  'grep': 'Search',
+  'Glob': 'Search',
+  'glob': 'Search',
+}
+
+/**
+ * Get room name for a tool, handling MCP tools and unknown tools
+ */
+function getToolRoom(tool: string): string {
+  // Direct mapping
+  if (TOOL_ROOMS[tool]) {
+    return TOOL_ROOMS[tool]
+  }
+  
+  // Handle MCP tools (mcp__plugin_name__tool_name)
+  if (tool.startsWith('mcp__')) {
+    const parts = tool.split('__')
+    const mcpTool = parts[parts.length - 1] // Get last part
+    
+    // Map common MCP tool actions
+    if (mcpTool.includes('read') || mcpTool.includes('list')) return 'Read'
+    if (mcpTool.includes('write') || mcpTool.includes('create')) return 'Write'
+    if (mcpTool.includes('exec') || mcpTool.includes('run')) return 'Exec'
+    if (mcpTool.includes('search') || mcpTool.includes('find')) return 'Search'
+    
+    // Default MCP tools to Read (most are info-gathering)
+    return 'Read'
+  }
+  
+  // Unknown tool - try to guess based on name
+  const lowerTool = tool.toLowerCase()
+  if (lowerTool.includes('read') || lowerTool.includes('get') || lowerTool.includes('list')) return 'Read'
+  if (lowerTool.includes('write') || lowerTool.includes('edit') || lowerTool.includes('create')) return 'Write'
+  if (lowerTool.includes('exec') || lowerTool.includes('run') || lowerTool.includes('bash')) return 'Exec'
+  if (lowerTool.includes('search') || lowerTool.includes('find') || lowerTool.includes('grep')) return 'Search'
+  if (lowerTool.includes('browser') || lowerTool.includes('web') || lowerTool.includes('fetch')) return 'Browser'
+  
+  // Fallback to Exec (most general-purpose)
+  return 'Exec'
 }
 
 /**
@@ -132,9 +197,9 @@ function handleSkillEnd(skill: string): void {
  */
 function handleToolUse(tool: string): void {
   const store = useClaudeStore.getState()
-  const room = TOOL_ROOMS[tool] || tool
+  const room = getToolRoom(tool)
   
-  console.log(`🔧 Using tool: ${tool} at ${room}`)
+  console.log(`🔧 Using tool: ${tool} → room: ${room}`)
   
   // If not in a skill room, go to tool station
   if (!store.currentRoom || TOOL_ROOMS[store.currentRoom]) {
@@ -157,19 +222,17 @@ function handleToolUse(tool: string): void {
 }
 
 /**
- * Track tool usage for achievements
+ * Track tool usage for achievements (tracks room names)
  */
-const toolsUsedThisSession = new Set<string>()
+const roomsUsedThisSession = new Set<string>()
 
 function trackToolUsage(tool: string): void {
-  toolsUsedThisSession.add(tool)
+  const room = getToolRoom(tool)
+  roomsUsedThisSession.add(room)
   
-  // Check if all tools used
-  const allTools = ['Read', 'Write', 'Exec', 'Browse']
-  const usedAll = allTools.every(t => 
-    toolsUsedThisSession.has(t) || 
-    toolsUsedThisSession.has(TOOL_ROOMS[t])
-  )
+  // Check if all main rooms used
+  const allRooms = ['Read', 'Write', 'Exec', 'Browser']
+  const usedAll = allRooms.every(r => roomsUsedThisSession.has(r))
   
   if (usedAll) {
     useClaudeStore.getState().unlockAchievement('tool_master')
