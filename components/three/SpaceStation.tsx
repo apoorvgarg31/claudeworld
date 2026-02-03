@@ -49,39 +49,69 @@ export default function SpaceStation({ currentRoom }: SpaceStationProps) {
     <group>
       {/* Central Hub - Claude's Home Dock */}
       <group position={[0, 0, 0]}>
-        {/* Main landing platform */}
+        {/* Main landing platform - brighter! */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
           <cylinderGeometry args={[4, 4.5, 0.3, 32]} />
           <meshStandardMaterial 
-            color="#1a1a2e" 
-            metalness={0.8} 
-            roughness={0.2}
+            color="#2a2a4a" 
+            metalness={0.6} 
+            roughness={0.3}
+            emissive="#1a1a2e"
+            emissiveIntensity={0.2}
           />
         </mesh>
         
-        {/* Landing pad markings */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
-          <ringGeometry args={[1.5, 2, 32]} />
-          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.5} />
-        </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
-          <ringGeometry args={[0.5, 0.7, 32]} />
-          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.8} />
+        {/* Platform top surface - lighter */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
+          <circleGeometry args={[3.8, 32]} />
+          <meshStandardMaterial 
+            color="#3a3a5a" 
+            metalness={0.4} 
+            roughness={0.5}
+          />
         </mesh>
         
-        {/* H pattern for landing */}
-        <mesh position={[0, 0.07, 0]}>
-          <boxGeometry args={[0.15, 0.02, 1.2]} />
-          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.6} />
+        {/* Landing pad markings - BRIGHT */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
+          <ringGeometry args={[1.5, 1.8, 32]} />
+          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={1.5} />
         </mesh>
-        <mesh position={[-0.4, 0.07, 0]}>
-          <boxGeometry args={[0.15, 0.02, 0.5]} />
-          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.6} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
+          <ringGeometry args={[2.5, 2.7, 32]} />
+          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={1} />
         </mesh>
-        <mesh position={[0.4, 0.07, 0]}>
-          <boxGeometry args={[0.15, 0.02, 0.5]} />
-          <meshStandardMaterial color="#D97706" emissive="#D97706" emissiveIntensity={0.6} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
+          <ringGeometry args={[0.4, 0.6, 32]} />
+          <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={2} />
         </mesh>
+        
+        {/* Landing pad light */}
+        <pointLight position={[0, 0.5, 0]} color="#D97706" intensity={2} distance={8} />
+        
+        {/* H pattern for landing - BRIGHT */}
+        <mesh position={[0, 0.09, 0]}>
+          <boxGeometry args={[0.2, 0.02, 1.4]} />
+          <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={2} />
+        </mesh>
+        <mesh position={[-0.5, 0.09, 0]}>
+          <boxGeometry args={[0.2, 0.02, 0.6]} />
+          <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={2} />
+        </mesh>
+        <mesh position={[0.5, 0.09, 0]}>
+          <boxGeometry args={[0.2, 0.02, 0.6]} />
+          <meshStandardMaterial color="#22d3ee" emissive="#22d3ee" emissiveIntensity={2} />
+        </mesh>
+        
+        {/* Corner lights on pad */}
+        {[[-1.5, 1.5], [1.5, 1.5], [-1.5, -1.5], [1.5, -1.5]].map(([x, z], i) => (
+          <group key={i} position={[x, 0.1, z]}>
+            <mesh>
+              <sphereGeometry args={[0.15, 8, 8]} />
+              <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={2} />
+            </mesh>
+            <pointLight color="#00ff00" intensity={0.5} distance={3} />
+          </group>
+        ))}
         
         {/* Control tower */}
         <group position={[0, 0, -2.5]}>
