@@ -15,6 +15,8 @@ export type ClaudeEventType =
   | 'task_end'      // Subagent finished
   | 'error'
   | 'connected'
+  | 'claude_output' // Terminal output from Claude
+  | 'prompt'        // User sent a prompt
 
 /**
  * Event payload

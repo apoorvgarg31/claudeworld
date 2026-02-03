@@ -177,6 +177,82 @@ const io = new Server(httpServer, {
 // Track connected UI clients
 const clients = new Map<string, { connectedAt: number; version?: string }>()
 
+// Tmux output capture state
+let lastTmuxOutput = ''
+let tmuxCaptureInterval: NodeJS.Timeout | null = null
+const TMUX_SESSION = process.env.TMUX_SESSION || 'claude'
+
+/**
+ * Capture tmux pane output and broadcast new content
+ */
+function startTmuxCapture(): void {
+  if (tmuxCaptureInterval) return
+  
+  const { exec } = require('child_process')
+  
+  tmuxCaptureInterval = setInterval(() => {
+    // Only capture if we have connected clients
+    if (clients.size === 0) return
+    
+    exec(`tmux capture-pane -t ${TMUX_SESSION} -p -S -100`, { maxBuffer: 1024 * 1024 }, (err: any, stdout: string) => {
+      if (err) return // tmux session might not exist
+      
+      const output = stdout.trim()
+      
+      // Only broadcast if content changed
+      if (output !== lastTmuxOutput && output.length > 0) {
+        // Find new content (simple diff - get lines after last known content)
+        const lastLines = lastTmuxOutput.split('\n')
+        const newLines = output.split('\n')
+        
+        // Find where new content starts
+        let newContent = ''
+        if (lastTmuxOutput.length === 0) {
+          newContent = output
+        } else {
+          // Get only truly new lines
+          const lastLine = lastLines[lastLines.length - 1]
+          const lastLineIdx = newLines.findIndex((line, idx) => 
+            idx >= lastLines.length - 1 && line === lastLine
+          )
+          if (lastLineIdx >= 0 && lastLineIdx < newLines.length - 1) {
+            newContent = newLines.slice(lastLineIdx + 1).join('\n')
+          } else if (output.length > lastTmuxOutput.length) {
+            // Fallback: just get the tail difference
+            newContent = newLines.slice(-20).join('\n')
+          }
+        }
+        
+        lastTmuxOutput = output
+        
+        if (newContent.trim().length > 0) {
+          broadcastEvent({
+            type: 'claude_output',
+            payload: { 
+              output: newContent,
+              fullOutput: output.slice(-5000) // Last 5000 chars for context
+            },
+            timestamp: Date.now(),
+          })
+        }
+      }
+    })
+  }, 500) // Poll every 500ms
+  
+  console.log(`📺 Started tmux capture for session '${TMUX_SESSION}'`)
+}
+
+/**
+ * Stop tmux capture
+ */
+function stopTmuxCapture(): void {
+  if (tmuxCaptureInterval) {
+    clearInterval(tmuxCaptureInterval)
+    tmuxCaptureInterval = null
+    console.log('📺 Stopped tmux capture')
+  }
+}
+
 /**
  * Broadcast event to all connected clients
  */
@@ -192,6 +268,11 @@ function broadcastEvent(event: any): void {
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`)
   clients.set(socket.id, { connectedAt: Date.now() })
+  
+  // Start tmux capture when first client connects
+  if (clients.size === 1) {
+    startTmuxCapture()
+  }
 
   // Client ready handshake
   socket.on('client:ready', (data) => {
@@ -224,6 +305,23 @@ io.on('connection', (socket) => {
   socket.on('disconnect', (reason) => {
     console.log(`❌ Client disconnected: ${socket.id} (${reason})`)
     clients.delete(socket.id)
+    
+    // Stop tmux capture when no clients
+    if (clients.size === 0) {
+      stopTmuxCapture()
+    }
+  })
+  
+  // Request current tmux output
+  socket.on('request:output', () => {
+    const { exec } = require('child_process')
+    exec(`tmux capture-pane -t ${TMUX_SESSION} -p -S -200`, { maxBuffer: 1024 * 1024 }, (err: any, stdout: string) => {
+      if (err) {
+        socket.emit('claude:output', { output: '', error: 'tmux session not found' })
+        return
+      }
+      socket.emit('claude:output', { output: stdout.trim() })
+    })
   })
 })
 
