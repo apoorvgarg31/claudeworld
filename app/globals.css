@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --anthropic-orange: #D97757;
+  --anthropic-tan: #D4A27F;
+  --anthropic-cream: #FAF7F2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 50%, #16213e 100%);
+  color: white;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--anthropic-orange);
+  border-radius: 3px;
+}
+
+/* Glass morphism utility */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* XP bar glow effect */
+.xp-bar {
+  background: linear-gradient(90deg, #FBBF24, #F59E0B);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+}
+
+/* Level badge glow */
+.level-badge {
+  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+/* Floating animation for XP popups */
+@keyframes xp-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50px) scale(1.2);
+  }
+}
+
+.xp-popup {
+  animation: xp-float 1.5s ease-out forwards;
+}
+
+/* Spline canvas styling */
+.spline-container canvas {
+  outline: none !important;
+}
