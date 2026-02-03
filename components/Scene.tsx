@@ -1,212 +1,314 @@
 'use client'
 
-import { Suspense, useRef } from 'react'
-import Spline from '@splinetool/react-spline'
-import type { Application } from '@splinetool/runtime'
+import { Suspense, useRef, useMemo, useEffect, useState } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import {
+  OrbitControls,
+  PerspectiveCamera,
+  Environment,
+  Stars,
+  Grid,
+  PerformanceMonitor,
+  AdaptiveDpr,
+  AdaptiveEvents,
+} from '@react-three/drei'
+import * as THREE from 'three'
 import { useClaudeStore } from '@/lib/store'
+import Office from './three/Office'
+import Claude from './three/Claude'
+
+// Room position mapping for Claude character
+const ROOM_POSITIONS: Record<string, [number, number, number]> = {
+  // Lobby (default)
+  lobby: [0, 0.7, 0.5],
+  // Tools floor (floor 2)
+  Read: [-3.5, 2.85, 0.5],
+  Write: [-1.2, 2.85, 0.5],
+  Exec: [1.2, 2.85, 0.5],
+  Browse: [3.5, 2.85, 0.5],
+  // Skills floor (floor 3)
+  'dev-workflow': [-3.5, 5, 0.5],
+  orchestra: [-1.2, 5, 0.5],
+  'test-regression': [1.2, 5, 0.5],
+  'pdf-data': [3.5, 5, 0.5],
+}
 
 /**
- * Scene Component
- * 
- * Renders the 3D Spline scene containing:
- * - The virtual office building
- * - Claude character
- * - Skill rooms and tool workstations
- * 
- * The scene receives events from the Claude Code bridge
- * and animates the character accordingly.
+ * Main Scene Component
+ * Renders the 3D office building with Claude character
  */
 export default function Scene() {
-  const splineRef = useRef<Application | null>(null)
   const { currentRoom, isWorking } = useClaudeStore()
-
-  const handleLoad = (spline: Application) => {
-    splineRef.current = spline
-    console.log('🎮 Spline scene loaded!')
-    
-    // Store spline reference globally for event handlers
-    if (typeof window !== 'undefined') {
-      (window as any).__splineApp = spline
-    }
-  }
+  const [dpr, setDpr] = useState(1.5)
 
   return (
-    <div className="spline-container w-full h-full">
-      <Suspense fallback={<SceneLoader />}>
-        {/* 
-          TODO: Replace with your actual Spline scene URL
-          Create your scene at https://spline.design and export to get the URL
-          
-          Example: https://prod.spline.design/xxxxx/scene.splinecode
-        */}
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0f0f0f] via-[#1a1a2e] to-[#16213e]">
-          {/* Placeholder until Spline scene is created */}
-          <PlaceholderScene currentRoom={currentRoom} isWorking={isWorking} />
-        </div>
-        
-        {/* Uncomment when you have a Spline scene URL:
-        <Spline
-          scene="YOUR_SPLINE_SCENE_URL"
-          onLoad={handleLoad}
-        />
-        */}
-      </Suspense>
-    </div>
-  )
-}
-
-function SceneLoader() {
-  return (
-    <div className="w-full h-full flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-3 border-anthropic-orange border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-gray-400 text-sm">Loading 3D scene...</p>
-      </div>
+    <div className="w-full h-full bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#0a0f1a]">
+      <Canvas
+        shadows
+        dpr={dpr}
+        gl={{
+          antialias: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.2,
+        }}
+      >
+        <Suspense fallback={<LoadingScene />}>
+          <PerformanceMonitor
+            onDecline={() => setDpr(1)}
+            onIncline={() => setDpr(1.5)}
+          >
+            <AdaptiveDpr pixelated />
+            <AdaptiveEvents />
+            
+            <SceneContent currentRoom={currentRoom} isWorking={isWorking} />
+          </PerformanceMonitor>
+        </Suspense>
+      </Canvas>
+      
+      {/* Loading overlay */}
+      <LoadingOverlay />
     </div>
   )
 }
 
 /**
- * Placeholder Scene
- * A beautiful CSS-based placeholder while the actual Spline scene is being designed
+ * Scene content - all 3D elements
  */
-function PlaceholderScene({ currentRoom, isWorking }: { currentRoom: string | null; isWorking: boolean }) {
+function SceneContent({
+  currentRoom,
+  isWorking,
+}: {
+  currentRoom: string | null
+  isWorking: boolean
+}) {
+  const claudePosition = useMemo(() => {
+    return currentRoom && ROOM_POSITIONS[currentRoom]
+      ? ROOM_POSITIONS[currentRoom]
+      : ROOM_POSITIONS.lobby
+  }, [currentRoom])
+
   return (
-    <div className="relative w-full max-w-4xl mx-auto p-8">
-      {/* Building visualization */}
-      <div className="relative">
-        {/* Floor 2: Skills */}
-        <div className="mb-4">
-          <div className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Floor 2: Skills</div>
-          <div className="grid grid-cols-4 gap-3">
-            {['dev-workflow', 'orchestra', 'test-regression', 'pdf-data'].map((skill) => (
-              <Room 
-                key={skill} 
-                name={skill} 
-                isActive={currentRoom === skill}
-                icon={getSkillIcon(skill)}
-              />
-            ))}
-          </div>
-        </div>
+    <>
+      {/* Camera */}
+      <PerspectiveCamera makeDefault position={[12, 8, 12]} fov={45} />
+      
+      {/* Controls */}
+      <OrbitControls
+        enablePan={false}
+        enableZoom={true}
+        minDistance={8}
+        maxDistance={25}
+        minPolarAngle={Math.PI / 6}
+        maxPolarAngle={Math.PI / 2.5}
+        autoRotate
+        autoRotateSpeed={0.3}
+        target={[0, 3, 0]}
+      />
 
-        {/* Floor 1: Tools */}
-        <div className="mb-4">
-          <div className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Floor 1: Tools</div>
-          <div className="grid grid-cols-4 gap-3">
-            {['Read', 'Write', 'Exec', 'Browse'].map((tool) => (
-              <Room 
-                key={tool} 
-                name={tool} 
-                isActive={currentRoom === tool}
-                icon={getToolIcon(tool)}
-              />
-            ))}
-          </div>
-        </div>
+      {/* Environment & Background */}
+      <color attach="background" args={['#0a0a0f']} />
+      <fog attach="fog" args={['#0a0a0f', 15, 40]} />
+      
+      {/* Stars background */}
+      <Stars
+        radius={50}
+        depth={50}
+        count={2000}
+        factor={4}
+        saturation={0}
+        fade
+        speed={0.5}
+      />
 
-        {/* Lobby */}
-        <div>
-          <div className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Lobby</div>
-          <div className="glass rounded-xl p-6 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              {/* Claude character */}
-              <div className="flex items-center gap-4">
-                <div className={`
-                  w-16 h-16 rounded-full bg-gradient-to-br from-anthropic-orange to-anthropic-tan
-                  flex items-center justify-center text-2xl
-                  ${!currentRoom ? 'ring-4 ring-anthropic-orange/50 animate-pulse' : 'opacity-50'}
-                  transition-all duration-500
-                `}>
-                  🤖
-                </div>
-                <div>
-                  <div className="font-semibold text-white">Claude</div>
-                  <div className="text-sm text-gray-400">
-                    {currentRoom 
-                      ? `Working in ${currentRoom}...` 
-                      : 'Waiting for instructions'}
-                  </div>
-                </div>
-              </div>
+      {/* Ground grid */}
+      <Grid
+        position={[0, -0.16, 0]}
+        args={[30, 30]}
+        cellSize={0.5}
+        cellThickness={0.5}
+        cellColor="#1a1a3a"
+        sectionSize={2}
+        sectionThickness={1}
+        sectionColor="#2a2a4a"
+        fadeDistance={25}
+        fadeStrength={1}
+        followCamera={false}
+        infiniteGrid
+      />
 
-              {/* Status indicators */}
-              <div className="flex gap-6">
-                <div className="text-center">
-                  <div className="text-2xl mb-1">🏆</div>
-                  <div className="text-xs text-gray-400">Achievements</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl mb-1">📊</div>
-                  <div className="text-xs text-gray-400">Leaderboard</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl mb-1">⚙️</div>
-                  <div className="text-xs text-gray-400">Settings</div>
-                </div>
-              </div>
-            </div>
+      {/* Lighting */}
+      <Lighting isWorking={isWorking} />
 
-            {/* Working indicator */}
-            {isWorking && (
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 text-sm text-anthropic-orange">
-                <span className="animate-pulse">●</span>
-                Processing...
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Office Building */}
+      <Office currentRoom={currentRoom} />
 
-      {/* Instructions */}
-      <div className="mt-8 text-center">
-        <p className="text-gray-500 text-sm">
-          🎨 This is a placeholder. Create your 3D scene at{' '}
-          <a href="https://spline.design" target="_blank" rel="noopener" className="text-anthropic-orange hover:underline">
-            spline.design
-          </a>
-        </p>
-      </div>
-    </div>
+      {/* Claude Character */}
+      <Claude
+        position={claudePosition}
+        isWorking={isWorking}
+        targetPosition={claudePosition}
+      />
+
+      {/* Ambient particles */}
+      <Particles />
+    </>
   )
 }
 
-function Room({ name, isActive, icon }: { name: string; isActive: boolean; icon: string }) {
+/**
+ * Scene lighting setup
+ */
+function Lighting({ isWorking }: { isWorking: boolean }) {
+  const sunRef = useRef<THREE.DirectionalLight>(null)
+
+  useFrame((state) => {
+    if (sunRef.current) {
+      // Subtle sun movement
+      const time = state.clock.elapsedTime * 0.1
+      sunRef.current.position.x = Math.sin(time) * 10
+      sunRef.current.position.z = Math.cos(time) * 10
+    }
+  })
+
   return (
-    <div 
-      className={`
-        glass rounded-lg p-4 text-center transition-all duration-300
-        ${isActive 
-          ? 'ring-2 ring-anthropic-orange bg-anthropic-orange/20 scale-105' 
-          : 'hover:bg-white/5'
-        }
-      `}
-    >
-      <div className="text-2xl mb-2">{icon}</div>
-      <div className="text-xs text-gray-300 truncate">{name}</div>
-      {isActive && (
-        <div className="mt-2 w-2 h-2 bg-green-500 rounded-full mx-auto animate-pulse" />
+    <>
+      {/* Ambient light - soft fill */}
+      <ambientLight intensity={0.3} color="#b4c6ef" />
+
+      {/* Main directional light - sun */}
+      <directionalLight
+        ref={sunRef}
+        position={[10, 15, 10]}
+        intensity={1}
+        color="#fff5e6"
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-far={50}
+        shadow-camera-left={-15}
+        shadow-camera-right={15}
+        shadow-camera-top={15}
+        shadow-camera-bottom={-15}
+      />
+
+      {/* Accent light - cool blue from opposite side */}
+      <directionalLight
+        position={[-10, 10, -10]}
+        intensity={0.4}
+        color="#6b8cff"
+      />
+
+      {/* Ground bounce light */}
+      <hemisphereLight
+        args={['#6b8cff', '#1a1a2e', 0.5]}
+      />
+
+      {/* Working indicator light */}
+      {isWorking && (
+        <pointLight
+          position={[0, 8, 0]}
+          color="#D97706"
+          intensity={2}
+          distance={15}
+          decay={2}
+        />
       )}
-    </div>
+    </>
   )
 }
 
-function getSkillIcon(skill: string): string {
-  const icons: Record<string, string> = {
-    'dev-workflow': '💻',
-    'orchestra': '🎵',
-    'test-regression': '🧪',
-    'pdf-data': '📄',
-  }
-  return icons[skill] || '📁'
+/**
+ * Floating ambient particles
+ */
+function Particles() {
+  const particlesRef = useRef<THREE.Points>(null)
+  const count = 100
+
+  const positions = useMemo(() => {
+    const pos = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 20
+      pos[i * 3 + 1] = Math.random() * 10
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 20
+    }
+    return pos
+  }, [])
+
+  useFrame((state) => {
+    if (particlesRef.current) {
+      particlesRef.current.rotation.y = state.clock.elapsedTime * 0.02
+      
+      const positions = particlesRef.current.geometry.attributes.position.array as Float32Array
+      for (let i = 0; i < count; i++) {
+        positions[i * 3 + 1] += Math.sin(state.clock.elapsedTime + i) * 0.002
+      }
+      particlesRef.current.geometry.attributes.position.needsUpdate = true
+    }
+  })
+
+  return (
+    <points ref={particlesRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.05}
+        color="#D97706"
+        transparent
+        opacity={0.6}
+        sizeAttenuation
+      />
+    </points>
+  )
 }
 
-function getToolIcon(tool: string): string {
-  const icons: Record<string, string> = {
-    'Read': '📖',
-    'Write': '✏️',
-    'Exec': '⚡',
-    'Browse': '🌐',
-  }
-  return icons[tool] || '🔧'
+/**
+ * Loading scene placeholder
+ */
+function LoadingScene() {
+  const meshRef = useRef<THREE.Mesh>(null)
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime
+    }
+  })
+
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <mesh ref={meshRef}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#D97706" wireframe />
+      </mesh>
+    </>
+  )
+}
+
+/**
+ * Loading overlay that fades out
+ */
+function LoadingOverlay() {
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoaded(true), 1500)
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (isLoaded) return null
+
+  return (
+    <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#0a0f1a] flex items-center justify-center z-10 transition-opacity duration-500">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-[#D97706] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <h2 className="text-xl font-semibold text-white mb-2">Loading ClaudeWorld</h2>
+        <p className="text-gray-400">Building your virtual office...</p>
+      </div>
+    </div>
+  )
 }
