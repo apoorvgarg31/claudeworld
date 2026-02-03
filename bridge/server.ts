@@ -183,6 +183,28 @@ let tmuxCaptureInterval: NodeJS.Timeout | null = null
 const TMUX_SESSION = process.env.TMUX_SESSION || 'claude'
 
 /**
+ * Filter out tool call noise, keep Claude's actual responses
+ */
+function filterOutput(text: string): string {
+  const lines = text.split('\n')
+  const filtered = lines.filter(line => {
+    const l = line.trim()
+    // Skip tool call lines
+    if (l.startsWith('●') || l.startsWith('◐') || l.startsWith('◑') || l.startsWith('◒') || l.startsWith('◓')) return false
+    if (l.startsWith('│') && (l.includes('Tool') || l.includes('MCP') || l.includes('plugin:'))) return false
+    if (l.includes('Running PreToolUse') || l.includes('Running PostToolUse')) return false
+    if (l.includes('tool_use') || l.includes('tool_result')) return false
+    // Skip progress spinners
+    if (l.match(/^[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/)) return false
+    // Skip empty box drawing
+    if (l.match(/^[│├└┌┐┘┬┴┼─]+$/)) return false
+    // Keep everything else
+    return true
+  })
+  return filtered.join('\n').trim()
+}
+
+/**
  * Capture tmux pane output and broadcast new content
  */
 function startTmuxCapture(): void {
@@ -194,7 +216,7 @@ function startTmuxCapture(): void {
     // Only capture if we have connected clients
     if (clients.size === 0) return
     
-    exec(`tmux capture-pane -t ${TMUX_SESSION} -p -S -100`, { maxBuffer: 1024 * 1024 }, (err: any, stdout: string) => {
+    exec(`tmux capture-pane -t ${TMUX_SESSION} -p -S -50`, { maxBuffer: 1024 * 1024 }, (err: any, stdout: string) => {
       if (err) return // tmux session might not exist
       
       const output = stdout.trim()
@@ -219,25 +241,27 @@ function startTmuxCapture(): void {
             newContent = newLines.slice(lastLineIdx + 1).join('\n')
           } else if (output.length > lastTmuxOutput.length) {
             // Fallback: just get the tail difference
-            newContent = newLines.slice(-20).join('\n')
+            newContent = newLines.slice(-10).join('\n')
           }
         }
         
         lastTmuxOutput = output
         
-        if (newContent.trim().length > 0) {
+        // Filter out tool noise
+        const filteredContent = filterOutput(newContent)
+        
+        if (filteredContent.length > 0) {
           broadcastEvent({
             type: 'claude_output',
             payload: { 
-              output: newContent,
-              fullOutput: output.slice(-5000) // Last 5000 chars for context
+              output: filteredContent,
             },
             timestamp: Date.now(),
           })
         }
       }
     })
-  }, 500) // Poll every 500ms
+  }, 1000) // Poll every 1 second (slower to reduce noise)
   
   console.log(`📺 Started tmux capture for session '${TMUX_SESSION}'`)
 }
