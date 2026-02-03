@@ -22,22 +22,34 @@ export default function Chat() {
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const { isConnected } = useClaudeStore()
 
-  // Subscribe to claude_output events
+  // Subscribe to claude events (from socket.ts -> window dispatch)
   useEffect(() => {
-    const handleClaudeOutput = (event: CustomEvent) => {
-      const { output } = event.detail
-      if (output && output.trim()) {
+    const handleClaudeEvent = (event: CustomEvent) => {
+      const { type, payload } = event.detail
+      
+      // Handle stop event with response
+      if (type === 'stop' && payload?.response) {
         setMessages(prev => [...prev, {
           id: `claude-${Date.now()}`,
           type: 'claude',
-          content: output.trim(),
+          content: payload.response.trim(),
+          timestamp: Date.now(),
+        }])
+      }
+      
+      // Handle tool use events (optional: show what Claude is doing)
+      if (type === 'tool_use' && payload?.tool) {
+        setMessages(prev => [...prev, {
+          id: `tool-${Date.now()}`,
+          type: 'system',
+          content: `🔧 Using: ${payload.tool}`,
           timestamp: Date.now(),
         }])
       }
     }
 
-    window.addEventListener('claude:output' as any, handleClaudeOutput)
-    return () => window.removeEventListener('claude:output' as any, handleClaudeOutput)
+    window.addEventListener('claude:event' as any, handleClaudeEvent)
+    return () => window.removeEventListener('claude:event' as any, handleClaudeEvent)
   }, [])
 
   // Auto-scroll to bottom
