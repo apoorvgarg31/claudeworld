@@ -181,24 +181,42 @@ const clients = new Map<string, { connectedAt: number; version?: string }>()
 let lastTmuxOutput = ''
 let tmuxCaptureInterval: NodeJS.Timeout | null = null
 const TMUX_SESSION = process.env.TMUX_SESSION || 'claude'
+// Disable auto-capture by default (too noisy), use manual refresh
+const AUTO_CAPTURE_ENABLED = process.env.AUTO_CAPTURE === 'true'
 
 /**
- * Filter out tool call noise, keep Claude's actual responses
+ * Filter out ALL terminal noise, keep only Claude's actual text responses
  */
 function filterOutput(text: string): string {
   const lines = text.split('\n')
   const filtered = lines.filter(line => {
     const l = line.trim()
-    // Skip tool call lines
-    if (l.startsWith('●') || l.startsWith('◐') || l.startsWith('◑') || l.startsWith('◒') || l.startsWith('◓')) return false
-    if (l.startsWith('│') && (l.includes('Tool') || l.includes('MCP') || l.includes('plugin:'))) return false
-    if (l.includes('Running PreToolUse') || l.includes('Running PostToolUse')) return false
+    if (!l) return false
+    
+    // Skip ALL these patterns:
+    // Progress/spinners
+    if (l.match(/^[●◐◑◒◓⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏▸▹►▻⬆⬇⬅➡❯→]/)) return false
+    // Box drawing
+    if (l.match(/^[│├└┌┐┘┬┴┼─╭╮╯╰]+/) || l.match(/[│├└┌┐┘┬┴┼─]+$/)) return false
+    // Status bars and prompts
+    if (l.includes('❯') || l.includes('▸')) return false
+    if (l.includes('/gsd:') || l.includes('Opus 4.5') || l.includes('claudeworld')) return false
+    if (l.includes('weekly limit') || l.includes('resets Feb')) return false
+    // Progress bars
+    if (l.match(/[█░▓▒]/)) return false
+    if (l.includes('Skedaddling') || l.includes('Stop hook')) return false
+    // Tool/MCP stuff  
+    if (l.includes('Tool') || l.includes('MCP') || l.includes('plugin:')) return false
+    if (l.includes('PreToolUse') || l.includes('PostToolUse')) return false
     if (l.includes('tool_use') || l.includes('tool_result')) return false
-    // Skip progress spinners
-    if (l.match(/^[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/)) return false
-    // Skip empty box drawing
-    if (l.match(/^[│├└┌┐┘┬┴┼─]+$/)) return false
-    // Keep everything else
+    // Errors and system messages
+    if (l.includes('bad interpreter') || l.includes('.sh:')) return false
+    if (l.includes('ctrl+') || l.includes('Ctrl+')) return false
+    // Input prompts
+    if (l.match(/^\d+\.\s*(Yes|No|Always)/i)) return false
+    if (l.includes('Do you want to proceed')) return false
+    
+    // Keep if it's plain text (Claude's actual response)
     return true
   })
   return filtered.join('\n').trim()
@@ -293,8 +311,8 @@ io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`)
   clients.set(socket.id, { connectedAt: Date.now() })
   
-  // Start tmux capture when first client connects
-  if (clients.size === 1) {
+  // Start tmux capture when first client connects (if enabled)
+  if (clients.size === 1 && AUTO_CAPTURE_ENABLED) {
     startTmuxCapture()
   }
 
