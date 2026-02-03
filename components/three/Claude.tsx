@@ -66,15 +66,45 @@ export default function Claude({ position, isWorking, targetPosition }: ClaudePr
     emissiveIntensity: 0.5,
   }), [])
 
-  useFrame((state) => {
+  // Track if walking
+  const isWalking = useRef(false)
+  const walkPhase = useRef(0)
+
+  useFrame((state, delta) => {
     const time = state.clock.elapsedTime
 
     if (groupRef.current) {
       // Smooth movement to target position
       if (targetPosition) {
         const target = new THREE.Vector3(...targetPosition)
-        currentPos.current.lerp(target, 0.05)
-        groupRef.current.position.copy(currentPos.current)
+        const distance = currentPos.current.distanceTo(target)
+        
+        // Check if we're walking
+        isWalking.current = distance > 0.1
+        
+        if (isWalking.current) {
+          // Faster, smoother movement
+          currentPos.current.lerp(target, 0.08)
+          groupRef.current.position.copy(currentPos.current)
+          
+          // Walking animation - bob up and down
+          walkPhase.current += delta * 12
+          groupRef.current.position.y += Math.sin(walkPhase.current) * 0.05
+          
+          // Face direction of movement
+          const direction = target.clone().sub(currentPos.current)
+          if (direction.length() > 0.01) {
+            const angle = Math.atan2(direction.x, direction.z)
+            groupRef.current.rotation.y = THREE.MathUtils.lerp(
+              groupRef.current.rotation.y,
+              angle,
+              0.1
+            )
+          }
+        } else {
+          groupRef.current.position.copy(currentPos.current)
+          walkPhase.current = 0
+        }
       }
 
       // Idle floating/bobbing animation

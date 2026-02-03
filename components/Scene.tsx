@@ -111,20 +111,19 @@ function SceneContent({
 
   return (
     <>
-      {/* Camera */}
-      <PerspectiveCamera makeDefault position={[12, 8, 12]} fov={45} />
+      {/* Camera - Top-down isometric view */}
+      <PerspectiveCamera makeDefault position={[0, 20, 12]} fov={50} />
       
       {/* Controls */}
       <OrbitControls
-        enablePan={false}
+        enablePan={true}
         enableZoom={true}
-        minDistance={8}
-        maxDistance={25}
-        minPolarAngle={Math.PI / 6}
-        maxPolarAngle={Math.PI / 2.5}
-        autoRotate
-        autoRotateSpeed={0.3}
-        target={[0, 3, 0]}
+        minDistance={10}
+        maxDistance={35}
+        minPolarAngle={0}
+        maxPolarAngle={Math.PI / 3}
+        autoRotate={false}
+        target={[0, 2, 0]}
       />
 
       {/* Environment & Background */}
