@@ -75,3 +75,31 @@ body {
 .spline-container canvas {
   outline: none !important;
 }
+
+/* Responsive utilities */
+@media (max-width: 640px) {
+  .glass {
+    backdrop-filter: blur(6px);
+    padding: 0.5rem;
+  }
+
+  .level-badge {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
+@media (max-width: 475px) {
+  .hud-xp-bar {
+    width: 8rem;
+  }
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
